@@ -13,7 +13,7 @@ echo.
 where node >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERROR] Node.js is not found on your system!
-    echo Please install Node.js (version 18 or newer) from https://nodejs.org/
+    echo Please install Node.js v18 or newer from https://nodejs.org/
     echo.
     pause
     exit /b 1
