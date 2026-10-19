@@ -380,7 +380,7 @@
 - [x] Express serves compiled assets
 - [x] QR library bundled locally; system fonts/text controls use no CDN
 - [ ] Test: cold startup with empty browser cache, internet disconnected
-- [ ] Lockfile committed
+- [x] Lockfile committed
 
 ### 6.3 Launcher
 - [x] Local launcher starts server + opens presenter page
@@ -449,11 +449,11 @@
 | 4a — Automatic Still Mode | 36 | 34 |
 | 4b — Uploaded Presentations | 51 | 43 |
 | 5 — Reliability | 19 | 19 |
-| 6 — Capacity & Packaging | 17 | 10 |
+| 6 — Capacity & Packaging | 17 | 11 |
 | 7 — Classroom Upgrade | 6 | 0 |
 | Acceptance Checklist | 22 | 0 |
-| **Total** | **266** | **214** |
+| **Total** | **266** | **215** |
 
 The previous summary undercounted the actual checkbox list. This table now counts
-every checkbox. **52 remain open**, including all 22 device acceptance items,
+every checkbox. **51 remain open**, including all 22 device acceptance items,
 six conditional classroom/SFU tasks, and Office-conversion hardening/validation.
