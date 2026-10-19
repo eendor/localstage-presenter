@@ -45,8 +45,12 @@ server.listen(port, '127.0.0.1', () => {
   console.log(`Presenter (one-use link, expires in 5 minutes): ${url}`);
   for (const adapter of getNetworkInterfaces()) console.log(`${adapter.name}: http://${adapter.address}:${port}/join`);
   if (process.env.OPEN_BROWSER === '1') {
-    const command = process.platform === 'win32' ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open';
-    spawn(command, [url], { stdio: 'ignore' }).on('error', () => console.log('Open the presenter link above manually.'));
+    if (process.platform === 'win32') {
+      spawn('cmd.exe', ['/c', 'start', '', url], { stdio: 'ignore' }).on('error', () => console.log('Open the presenter link above manually.'));
+    } else {
+      const command = process.platform === 'darwin' ? 'open' : 'xdg-open';
+      spawn(command, [url], { stdio: 'ignore' }).on('error', () => console.log('Open the presenter link above manually.'));
+    }
   }
 });
 void bindLan(selectedAddress).catch(console.error);

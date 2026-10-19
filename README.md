@@ -25,10 +25,17 @@ npm install
 npm run build
 ```
 
-### Run
+### One-Click Run (Windows)
+
+Simply double-click **`run-localstage.bat`** (or run `.\run-localstage.ps1` in PowerShell).  
+It will automatically verify dependencies, build if needed, start the local server, and open your browser directly to the presenter page.
+
+### Manual Run
 
 ```bash
 npm start
+# or start with automatic browser opening:
+npm run launch
 ```
 
 Open the **one-use presenter link** printed in the terminal. It uses
