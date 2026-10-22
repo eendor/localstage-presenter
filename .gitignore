@@ -3,3 +3,4 @@ localstage
 src/*.o
 *.log
 .env
+localstage.exe

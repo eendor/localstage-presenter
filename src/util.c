@@ -1,16 +1,24 @@
+#ifndef _WIN32
 #define _GNU_SOURCE
+#endif
 #include "util.h"
 
 #include <errno.h>
-#include <ftw.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <bcrypt.h>
+#else
+#include <ftw.h>
 #include <strings.h>
 #include <sys/random.h>
-#include <time.h>
 #include <unistd.h>
+#endif
 
 static void die_oom(void) {
     fputs("Out of memory\n", stderr);
@@ -79,6 +87,14 @@ void buf_json_str(Buf *b, const char *s) {
     buf_add(b, "\"", 1);
 }
 
+#ifdef _WIN32
+void random_bytes(void *out, size_t n) {
+    if (BCryptGenRandom(NULL, out, (ULONG)n, BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
+        fputs("System random number generator failed\n", stderr);
+        abort();
+    }
+}
+#else
 void random_bytes(void *out, size_t n) {
     unsigned char *p = out;
     while (n) {
@@ -92,6 +108,7 @@ void random_bytes(void *out, size_t n) {
         n -= (size_t)r;
     }
 }
+#endif
 
 void random_hex(char *out, size_t bytes) {
     static const char hex[] = "0123456789abcdef";
@@ -176,6 +193,44 @@ int secure_streq(const char *a, const char *b) {
     return diff == 0;
 }
 
+#ifdef _WIN32
+int64_t now_wall_ms(void) {
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    uint64_t t = ((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime; /* 100 ns since 1601 */
+    return (int64_t)(t / 10000 - 11644473600000ULL);
+}
+
+int64_t now_mono_ms(void) { return (int64_t)GetTickCount64(); }
+
+int str_starts(const char *s, const char *prefix) { return strncmp(s, prefix, strlen(prefix)) == 0; }
+
+int str_ieq(const char *a, const char *b) { return _stricmp(a, b) == 0; }
+
+int remove_tree(const char *path) {
+    if (!path || !*path) return 0;
+    char pattern[MAX_PATH + 4];
+    snprintf(pattern, sizeof pattern, "%s\\*", path);
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    int rc = 0;
+    if (h != INVALID_HANDLE_VALUE) {
+        do {
+            if (!strcmp(fd.cFileName, ".") || !strcmp(fd.cFileName, "..")) continue;
+            char child[MAX_PATH + 4];
+            snprintf(child, sizeof child, "%s\\%s", path, fd.cFileName);
+            if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && !(fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) rc |= remove_tree(child);
+            else {
+                SetFileAttributesA(child, FILE_ATTRIBUTE_NORMAL);
+                if (!DeleteFileA(child) && !RemoveDirectoryA(child)) rc = -1;
+            }
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+    }
+    if (!RemoveDirectoryA(path)) rc = -1;
+    return rc;
+}
+#else
 int64_t now_wall_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -201,3 +256,4 @@ int remove_tree(const char *path) {
     if (!path || !*path) return 0;
     return nftw(path, remove_entry, 16, FTW_DEPTH | FTW_PHYS);
 }
+#endif

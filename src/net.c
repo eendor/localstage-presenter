@@ -1,13 +1,49 @@
 /* Network adapter discovery (external IPv4 interfaces only). */
+#ifndef _WIN32
 #define _GNU_SOURCE
-#include <arpa/inet.h>
+#endif
 #include <ctype.h>
-#include <ifaddrs.h>
-#include <net/if.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "server.h"
+
+#ifdef _WIN32
+#include <iphlpapi.h>
+
+int net_list(Iface *out, int max) {
+    ULONG size = 16384;
+    IP_ADAPTER_ADDRESSES *list = NULL;
+    ULONG rc = ERROR_BUFFER_OVERFLOW;
+    for (int tries = 0; tries < 3 && rc == ERROR_BUFFER_OVERFLOW; tries++) {
+        free(list);
+        list = malloc(size);
+        if (!list) return 0;
+        rc = GetAdaptersAddresses(AF_INET, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER, NULL, list, &size);
+    }
+    int n = 0;
+    if (rc == NO_ERROR) {
+        for (IP_ADAPTER_ADDRESSES *a = list; a && n < max; a = a->Next) {
+            if (a->OperStatus != IfOperStatusUp || a->IfType == IF_TYPE_SOFTWARE_LOOPBACK) continue;
+            for (IP_ADAPTER_UNICAST_ADDRESS *u = a->FirstUnicastAddress; u && n < max; u = u->Next) {
+                if (u->Address.lpSockaddr->sa_family != AF_INET) continue;
+                struct sockaddr_in *sin = (struct sockaddr_in *)u->Address.lpSockaddr;
+                inet_ntop(AF_INET, &sin->sin_addr, out[n].address, sizeof out[n].address);
+                if (!strncmp(out[n].address, "169.254.", 8)) continue; /* no DHCP lease */
+                if (!WideCharToMultiByte(CP_UTF8, 0, a->FriendlyName, -1, out[n].name, sizeof out[n].name, NULL, NULL))
+                    snprintf(out[n].name, sizeof out[n].name, "%s", a->AdapterName);
+                n++;
+            }
+        }
+    }
+    free(list);
+    return n;
+}
+#else
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <net/if.h>
 
 int net_list(Iface *out, int max) {
     struct ifaddrs *list, *it;
@@ -24,6 +60,8 @@ int net_list(Iface *out, int max) {
     freeifaddrs(list);
     return n;
 }
+
+#endif
 
 static int wireless(const char *name) {
     char low[64];

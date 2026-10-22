@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "qr.h"
 #include "server.h"
@@ -285,9 +284,15 @@ static int parse_head(Conn *c, char *head) {
     return hosts == 1 && c->content_length != -2;
 }
 
+static char *find_crlf2(char *d, size_t n) {
+    for (size_t i = 0; i + 4 <= n; i++)
+        if (d[i] == '\r' && !memcmp(d + i, "\r\n\r\n", 4)) return d + i;
+    return NULL;
+}
+
 void http_on_readable(Conn *c) {
     if (c->st == CS_HEAD) {
-        char *end = memmem(c->in.d, c->in.len, "\r\n\r\n", 4);
+        char *end = find_crlf2(c->in.d, c->in.len);
         if (!end) {
             if (c->in.len > MAX_HEADER_BYTES) status_only(c, 431);
             return;

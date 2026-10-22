@@ -3,7 +3,9 @@
 #define LS_SERVER_H
 
 #include <stdint.h>
-#include <sys/types.h>
+#include <stdio.h>
+
+#include "plat.h"
 
 #include "json.h"
 #include "util.h"
@@ -22,7 +24,7 @@ typedef enum { CS_HEAD, CS_BODY, CS_UPLOAD, CS_WAIT, CS_WS, CS_DRAIN } ConnState
 typedef enum { ROLE_NONE, ROLE_HOST, ROLE_VIEWER } Role;
 
 typedef struct Conn {
-    int fd;
+    sock_t fd;
     int lan;           /* accepted on the LAN listener */
     int from_loopback; /* peer address is 127.0.0.1 */
     char ip[64];
@@ -39,7 +41,7 @@ typedef struct Conn {
     char host[256], origin[256], auth[256], ctype[128], upgrade[64], wskey[64], wsver[8], te[64];
     long long content_length; /* -1 when absent */
     long long received;
-    int upload_fd;
+    FILE *upload_f;
 
     /* WebSocket state. */
     Buf frag;
@@ -89,7 +91,7 @@ typedef struct {
 
 typedef struct {
     int port;
-    int loop_fd, lan_fd;
+    sock_t loop_fd, lan_fd;
     char selected[64]; /* empty: no LAN listener */
     Conn **conns;
     int nconns, capconns;
@@ -114,7 +116,7 @@ typedef struct {
     char max_upload_label[32];
     int max_pages;
     /* Running conversion. */
-    pid_t conv_pid;
+    PlatProc conv; /* conv.running: a conversion process is active */
     int64_t conv_deadline;
     Conn *conv_conn;
     char conv_dir[512];
@@ -159,6 +161,8 @@ int decks_navigate(const char *id, long long revision, long long sequence, long 
 void decks_serve_slide(Conn *c, const char *id, const char *slide);
 void deck_state_json(Buf *b);
 void decks_shutdown(void);
+/* Conversion worker entry point (runs in the child process, never returns). */
+void decks_convert_child(const char *dir, const char *format, int max_pages);
 
 /* net.c */
 typedef struct { char name[64]; char address[64]; } Iface;

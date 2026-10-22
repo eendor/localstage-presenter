@@ -1,16 +1,14 @@
 /* Deck upload, conversion (pdfinfo/pdftoppm, optional LibreOffice) and slide access. */
-#define _GNU_SOURCE
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <math.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
+#ifdef _WIN32
+#include <process.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "server.h"
 
@@ -48,7 +46,6 @@ void decks_init(void) {
     long p = pages && *pages ? strtol(pages, &end, 10) : 200;
     if ((pages && *pages && *end) || p < 1 || p > 1000) { fprintf(stderr, "MAX_DECK_PAGES must be between 1 and 1000\n"); exit(1); }
     app.max_pages = (int)p;
-    app.conv_pid = 0;
 }
 
 /* ---------- upload ---------- */
@@ -71,8 +68,8 @@ static void query_param(const char *query, const char *key, char *out, size_t n)
 }
 
 static void fail_upload(Conn *c, int status, const char *message) {
-    if (c->upload_fd >= 0) { close(c->upload_fd); c->upload_fd = -1; }
-    if (app.conv_dir[0] && app.conv_conn == c && !app.conv_pid) { remove_tree(app.conv_dir); app.conv_dir[0] = 0; app.conv_conn = NULL; }
+    if (c->upload_f) { fclose(c->upload_f); c->upload_f = NULL; }
+    if (app.conv_dir[0] && app.conv_conn == c && !app.conv.running) { remove_tree(app.conv_dir); app.conv_dir[0] = 0; app.conv_conn = NULL; }
     http_error(c, status, message);
 }
 
@@ -81,27 +78,25 @@ void decks_begin_upload(Conn *c) {
     query_param(c->query, "format", format, sizeof format);
     for (char *p = format; *p; p++) *p = (char)tolower((unsigned char)*p);
     char msg[128];
-    c->upload_fd = -1;
+    c->upload_f = NULL;
     if (c->content_length < 0) { http_error(c, 411, "Content-Length required"); return; }
     if (c->content_length > app.max_upload) {
         snprintf(msg, sizeof msg, "Upload too large. Maximum deck size is %s.", app.max_upload_label);
         http_error(c, 413, msg);
         return;
     }
-    if (app.conv_conn || app.conv_pid) { http_error(c, 409, "A conversion is already running"); return; }
+    if (app.conv_conn || app.conv.running) { http_error(c, 409, "A conversion is already running"); return; }
     if (app.ndecks >= MAX_DECKS) { http_error(c, 409, "Four decks loaded. End the session before uploading more."); return; }
     if ((strcmp(format, "pdf") && strcmp(format, "ppt") && strcmp(format, "pptx")) || c->content_length == 0) {
         http_error(c, 400, "Upload a PDF, PPTX or PPT file");
         return;
     }
-    const char *tmp = getenv("TMPDIR");
-    snprintf(app.conv_dir, sizeof app.conv_dir, "%s/localstage-deck-XXXXXX", tmp && *tmp ? tmp : "/tmp");
-    if (!mkdtemp(app.conv_dir)) { app.conv_dir[0] = 0; http_error(c, 500, "Could not create a temporary folder"); return; }
+    if (plat_mkdtemp(app.conv_dir, sizeof app.conv_dir, "localstage-deck-") != 0) { http_error(c, 500, "Could not create a temporary folder"); return; }
     char path[600];
     snprintf(path, sizeof path, "%s/original.%s", app.conv_dir, format);
-    c->upload_fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    c->upload_f = fopen(path, "wb");
     app.conv_conn = c;
-    if (c->upload_fd < 0) { fail_upload(c, 500, "Could not store the upload"); return; }
+    if (!c->upload_f) { fail_upload(c, 500, "Could not store the upload"); return; }
     snprintf(conv_format, sizeof conv_format, "%s", format);
     app.conv_epoch = app.epoch;
     c->received = 0;
@@ -109,40 +104,10 @@ void decks_begin_upload(Conn *c) {
 }
 
 void decks_upload_data(Conn *c, const char *data, size_t n) {
-    while (n) {
-        ssize_t w = write(c->upload_fd, data, n);
-        if (w < 0) {
-            if (errno == EINTR) continue;
-            fail_upload(c, 500, "Could not store the upload");
-            return;
-        }
-        data += w;
-        n -= (size_t)w;
-    }
+    if (n && fwrite(data, 1, n, c->upload_f) != n) fail_upload(c, 500, "Could not store the upload");
 }
 
 /* ---------- conversion child ---------- */
-
-static int run(char *const argv[], const char *out_path, const char *err_path) {
-    pid_t pid = fork();
-    if (pid < 0) return -1;
-    if (pid == 0) {
-        int in = open("/dev/null", O_RDONLY);
-        int out = out_path ? open(out_path, O_WRONLY | O_CREAT | O_TRUNC, 0600) : open("/dev/null", O_WRONLY);
-        int err = open(err_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-        if (in < 0 || out < 0 || err < 0) _exit(126);
-        dup2(in, 0);
-        dup2(out, 1);
-        dup2(err, 2);
-        execvp(argv[0], argv);
-        dprintf(2, "Could not run %s: %s", argv[0], strerror(errno));
-        _exit(127);
-    }
-    int status;
-    while (waitpid(pid, &status, 0) < 0)
-        if (errno != EINTR) return -1;
-    return WIFEXITED(status) ? WEXITSTATUS(status) : 128;
-}
 
 static void child_fail(const char *dir, const char *message) {
     char path[600];
@@ -167,7 +132,7 @@ static void read_tail(const char *path, char *out, size_t n) {
     while (r && isspace((unsigned char)out[r - 1])) out[--r] = 0;
 }
 
-static void child_convert(const char *dir, const char *format, int max_pages) {
+void decks_convert_child(const char *dir, const char *format, int max_pages) {
     char pdf[600], errlog[600], info[600];
     snprintf(errlog, sizeof errlog, "%s/stderr.log", dir);
     snprintf(pdf, sizeof pdf, "%s/original.%s", dir, format);
@@ -179,21 +144,23 @@ static void child_convert(const char *dir, const char *format, int max_pages) {
         snprintf(xcu, sizeof xcu, "%s/registrymodifications.xcu", profile);
         char p1[700];
         snprintf(p1, sizeof p1, "%s/office-profile", dir);
-        mkdir(p1, 0700);
-        mkdir(profile, 0700);
+        plat_mkdir(p1);
+        plat_mkdir(profile);
         FILE *f = fopen(xcu, "w");
         if (f) {
             /* Disable macros and link updates in the throwaway profile. */
             fputs("<?xml version=\"1.0\"?><oor:items xmlns:oor=\"http://openoffice.org/2001/registry\"><item oor:path=\"/org.openoffice.Office.Common/Security/Scripting\"><prop oor:name=\"MacroSecurityLevel\" oor:op=\"fuse\"><value>3</value></prop></item><item oor:path=\"/org.openoffice.Office.Common/Load\"><prop oor:name=\"UpdateDocMode\" oor:op=\"fuse\"><value>0</value></prop></item></oor:items>", f);
             fclose(f);
         }
-        snprintf(env, sizeof env, "-env:UserInstallation=file://%s", p1);
+        char purl[760];
+        plat_file_url(p1, purl, sizeof purl);
+        snprintf(env, sizeof env, "-env:UserInstallation=%s", purl);
         char *argv[] = {(char *)office, env, "--headless", "--nologo", "--nodefault", "--norestore", "--convert-to",
                         "pdf:impress_pdf_Export:{\"ExportNotesPages\":{\"type\":\"boolean\",\"value\":\"false\"},\"ExportHiddenSlides\":{\"type\":\"boolean\",\"value\":\"false\"}}",
                         "--outdir", (char *)dir, pdf, NULL};
-        int rc = run(argv, NULL, errlog);
+        int rc = plat_run(argv, NULL, errlog);
         snprintf(pdf, sizeof pdf, "%s/original.pdf", dir);
-        if (rc != 0 || access(pdf, F_OK) != 0) {
+        if (rc != 0 || !plat_exists(pdf)) {
             char tail[512];
             read_tail(errlog, tail, sizeof tail);
             if (rc == 127) child_fail(dir, "Office conversion requires LibreOffice. Install it, set LIBREOFFICE_PATH to soffice, or export your deck to PDF.");
@@ -203,7 +170,7 @@ static void child_convert(const char *dir, const char *format, int max_pages) {
 
     snprintf(info, sizeof info, "%s/info.txt", dir);
     char *iargv[] = {"pdfinfo", pdf, NULL};
-    int rc = run(iargv, info, errlog);
+    int rc = plat_run(iargv, info, errlog);
     if (rc != 0) {
         char tail[512];
         read_tail(errlog, tail, sizeof tail);
@@ -235,7 +202,7 @@ static void child_convert(const char *dir, const char *format, int max_pages) {
     char prefix[600];
     snprintf(prefix, sizeof prefix, "%s/page", dir);
     char *rargv[] = {"pdftoppm", "-png", "-scale-to", "1920", pdf, prefix, NULL};
-    rc = run(rargv, NULL, errlog);
+    rc = plat_run(rargv, NULL, errlog);
     if (rc != 0) {
         char tail[512];
         read_tail(errlog, tail, sizeof tail);
@@ -262,35 +229,28 @@ static void child_convert(const char *dir, const char *format, int max_pages) {
 static int has_pdf_magic(void) {
     char path[600], head[5];
     snprintf(path, sizeof path, "%s/original.pdf", app.conv_dir);
-    int fd = open(path, O_RDONLY | O_CLOEXEC);
-    if (fd < 0) return 0;
-    ssize_t r = read(fd, head, 5);
-    close(fd);
+    FILE *f = fopen(path, "rb");
+    if (!f) return 0;
+    size_t r = fread(head, 1, 5, f);
+    fclose(f);
     return r == 5 && !memcmp(head, "%PDF-", 5);
 }
 
 void decks_upload_done(Conn *c) {
-    close(c->upload_fd);
-    c->upload_fd = -1;
+    if (c->upload_f && fclose(c->upload_f) != 0) { c->upload_f = NULL; fail_upload(c, 500, "Could not store the upload"); return; }
+    c->upload_f = NULL;
     if (!strcmp(conv_format, "pdf") && !has_pdf_magic()) { fail_upload(c, 400, "Invalid PDF file"); return; }
     c->st = CS_WAIT;
-    pid_t pid = fork();
-    if (pid < 0) { fail_upload(c, 500, "Could not start conversion"); return; }
-    if (pid == 0) {
-        setpgid(0, 0);
-        signal(SIGPIPE, SIG_DFL);
-        signal(SIGINT, SIG_IGN);
-        child_convert(app.conv_dir, conv_format, app.max_pages);
+    if (plat_spawn_convert(&app.conv, decks_convert_child, app.conv_dir, conv_format, app.max_pages) != 0) {
+        fail_upload(c, 500, "Could not start conversion");
+        return;
     }
-    setpgid(pid, pid);
-    app.conv_pid = pid;
     app.conv_deadline = now_mono_ms() + CONVERT_TIMEOUT_MS;
 }
 
 static void finish(int ok, const char *error) {
     Conn *c = app.conv_conn;
     int stale = app.conv_epoch != app.epoch;
-    app.conv_pid = 0;
     app.conv_conn = NULL;
     if (ok && !stale && c && app.ndecks < MAX_DECKS) {
         char count[600];
@@ -321,21 +281,16 @@ static void finish(int ok, const char *error) {
 }
 
 void decks_poll(void) {
-    if (!app.conv_pid) return;
-    int status;
-    pid_t r = waitpid(app.conv_pid, &status, WNOHANG);
-    if (r == 0) {
+    if (!app.conv.running) return;
+    int code = 1;
+    if (!plat_proc_poll(&app.conv, &code)) {
         if (now_mono_ms() > app.conv_deadline) {
-            kill(-app.conv_pid, SIGKILL);
-            waitpid(app.conv_pid, &status, 0);
+            plat_proc_kill(&app.conv);
             finish(0, "Conversion exceeded two-minute time limit");
         }
         return;
     }
-    if (r < 0 && errno == EINTR) return;
-    /* Reap anything left in the group (e.g. LibreOffice helpers). */
-    kill(-app.conv_pid, SIGKILL);
-    if (r > 0 && WIFEXITED(status) && WEXITSTATUS(status) == 0) { finish(1, NULL); return; }
+    if (code == 0) { finish(1, NULL); return; }
     char err[600], msg[512];
     snprintf(err, sizeof err, "%s/error.txt", app.conv_dir);
     read_tail(err, msg, sizeof msg);
@@ -344,9 +299,9 @@ void decks_poll(void) {
 
 void decks_conn_gone(Conn *c) {
     if (app.conv_conn != c) return;
-    if (c->upload_fd >= 0) { close(c->upload_fd); c->upload_fd = -1; }
+    if (c->upload_f) { fclose(c->upload_f); c->upload_f = NULL; }
     app.conv_conn = NULL;
-    if (!app.conv_pid && app.conv_dir[0]) { remove_tree(app.conv_dir); app.conv_dir[0] = 0; }
+    if (!app.conv.running && app.conv_dir[0]) { remove_tree(app.conv_dir); app.conv_dir[0] = 0; }
 }
 
 void decks_clear(void) {
@@ -357,12 +312,7 @@ void decks_clear(void) {
 }
 
 void decks_shutdown(void) {
-    if (app.conv_pid) {
-        int status;
-        kill(-app.conv_pid, SIGKILL);
-        waitpid(app.conv_pid, &status, 0);
-        app.conv_pid = 0;
-    }
+    plat_proc_kill(&app.conv);
     if (app.conv_dir[0]) remove_tree(app.conv_dir);
     decks_clear();
 }
@@ -427,22 +377,18 @@ void decks_serve_slide(Conn *c, const char *id, const char *slide_s) {
     if (!d || slide < 1 || slide > d->total) { http_send(c, 404, "text/plain", "Not Found", 9, nostore); return; }
     char path[600];
     snprintf(path, sizeof path, "%s/%lld.png", d->dir, slide);
-    int fd = open(path, O_RDONLY | O_CLOEXEC);
-    struct stat st;
-    if (fd < 0 || fstat(fd, &st) != 0) {
-        if (fd >= 0) close(fd);
+    FILE *f = fopen(path, "rb");
+    long size = -1;
+    if (f && fseek(f, 0, SEEK_END) == 0) size = ftell(f);
+    if (!f || size < 0 || fseek(f, 0, SEEK_SET) != 0) {
+        if (f) fclose(f);
         http_send(c, 404, "text/plain", "Not Found", 9, nostore);
         return;
     }
-    char *data = malloc((size_t)st.st_size + 1);
-    size_t got = 0;
-    while (data && got < (size_t)st.st_size) {
-        ssize_t r = read(fd, data + got, (size_t)st.st_size - got);
-        if (r <= 0) break;
-        got += (size_t)r;
-    }
-    close(fd);
-    if (!data || got != (size_t)st.st_size) { free(data); http_error(c, 500, "Could not read slide"); return; }
+    char *data = malloc((size_t)size + 1);
+    size_t got = data ? fread(data, 1, (size_t)size, f) : 0;
+    fclose(f);
+    if (!data || got != (size_t)size) { free(data); http_error(c, 500, "Could not read slide"); return; }
     http_send(c, 200, "image/png", data, got, nostore);
     free(data);
 }

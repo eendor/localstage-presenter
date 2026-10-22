@@ -21,6 +21,14 @@ make test       # end-to-end tests (starts a server on a random port)
 
 The server prints a one-use presenter link (`http://127.0.0.1:3000/host#...`, valid for 5 minutes) and the join address for each network adapter. Open the presenter link on this computer. Viewers open the `/join` address or scan the QR code.
 
+## Windows
+
+Download `localstage-windows.zip` from the [Releases](https://github.com/eendor/localstage-presenter/releases) page, unzip it, and double-click **run-localstage.bat**. The presenter page opens in your browser; allow the firewall prompt so phones on your Wi-Fi can join.
+
+PDF decks need Poppler: grab a build from [poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases) and unzip it into a `poppler` folder next to `localstage.exe` (or put it on `PATH`). PowerPoint/ODP decks also need LibreOffice (`soffice` on `PATH`).
+
+To build the exe yourself: `make windows` (MinGW cross-compiler, e.g. `pacman -S mingw-w64-gcc`) or natively in MSYS2.
+
 ## Settings (environment variables)
 
 | Variable | Default | Meaning |
