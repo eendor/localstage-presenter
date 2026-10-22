@@ -2,6 +2,8 @@
 
 **Local Network Presentation App** — Share your screen with anyone on the same Wi-Fi, no internet required.
 
+A local-first presentation platform with real-time slide sharing, presenter notes, and synchronized audience viewing over a local network, without internet access.
+
 A presenter runs a small server on their laptop, shares a screen/window/browser tab, and shows a local IP address or QR code. Viewers open that address in a browser and watch the live stream. Only the presenter installs the app. Viewers need no installation or accounts.
 
 ## Quick Start
