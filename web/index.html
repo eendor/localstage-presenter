@@ -357,12 +357,12 @@ function hostPage(root) {
   const deckView = h('div');
   const inApp = /LocalStageApp/.test(navigator.userAgent);
   const deckCard = h('section', { class: 'card' }, h('h2', {}, 'Presentation deck'),
-    h('label', { class: 'label' }, inApp ? 'Choose a PDF' : 'Upload PDF, PPTX or PPT', file),
+    h('label', { class: 'label' }, inApp ? 'Choose slides (PDF or PowerPoint)' : 'Upload PDF, PPTX or PPT', file),
     inApp ? h('p', { class: 'muted' }, 'You can also Share a PDF to LocalStage from any app.') : null,
     deckBusy, deckError, presentBtn, deckView);
   if (inApp) {
     // Android app: screen capture isn't available, so present decks only.
-    file.accept = '.pdf,application/pdf'; source.value = 'deck'; source.querySelector('option[value=screen]').remove();
+    file.accept = '.pdf,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint'; source.value = 'deck'; source.querySelector('option[value=screen]').remove();
     setInterval(async () => {
       if (!S.token || deckBusy.hidden === false) return;
       try {
@@ -377,6 +377,11 @@ function hostPage(root) {
     setError(deckError, ''); file.disabled = true; deckBusy.hidden = false;
     try {
       const ext = (f.name.split('.').pop() || '').toLowerCase();
+      if (inApp && ext !== 'pdf') {
+        // Phones can't convert PowerPoint; tell the presenter the quick fix.
+        const e = new Error('PowerPoint files can\'t be converted on a phone. Open it in PowerPoint or Google Slides, choose Share → Export as PDF, then pick that PDF here.');
+        e.userFacing = true; throw e;
+      }
       let body = f, format = ext;
       if (ext === 'pdf') {
         // Render the PDF here in the browser, so the computer needs no PDF tools installed.

@@ -67,7 +67,7 @@ See [NETWORK.md](NETWORK.md) for network setup and troubleshooting.
 
 ## Android
 
-`android/app.c` is the whole app: a NativeActivity (no Java) that runs the server on a thread and shows the presenter page in a WebView built through JNI. Shared PDFs are copied to the app's storage and picked up by the page via `GET /api/shared-deck`.
+`android/app.c` is the app: a NativeActivity in C, plus a tiny `Main.java` that only opens Android's file picker for the page's file button. It runs the server on a thread and shows the presenter page in a WebView built through JNI. PowerPoint files picked on the phone get a message asking for a PDF export. The server follows a hotspot or tether adapter automatically while no presentation is running. Shared PDFs are copied to the app's storage and picked up by the page via `GET /api/shared-deck`.
 
 Build the APK (needs the Android SDK and NDK):
 

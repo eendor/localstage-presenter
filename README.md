@@ -42,7 +42,8 @@
 Install `localstage-android.apk` from the [download page](https://github.com/eendor/localstage-presenter/releases/latest). Android may ask you to allow installs from your browser or Files app.
 
 1. Open **LocalStage**. The presenter screen appears with the join QR code.
-2. Tap **Choose a PDF** and pick your slides. (Or, from any app, **Share** a PDF to LocalStage.)
+2. Tap **Choose slides** and pick your PDF. (Or, from any app, **Share** a PDF to LocalStage.)
+   Got a PowerPoint? Open it in the PowerPoint or Google Slides app, use **Share → Export as PDF**, and pick that PDF. The phone can't convert PowerPoint by itself; a computer running LocalStage can.
 3. Tap **Start presentation** and swipe through your slides.
 
 Tip: turn on your phone's **hotspot** and have people join it. LocalStage notices the hotspot by itself and updates the QR code. That works anywhere, even with no Wi-Fi around. Screen sharing isn't available on Android, so present a PDF.
