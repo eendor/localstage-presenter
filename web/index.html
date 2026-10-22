@@ -74,6 +74,18 @@ dialog.script-dialog .script-reader { max-height: calc(90vh - 120px); }
 .slide-edge { position: absolute; top: 50%; transform: translateY(-50%); z-index: 1; font-size: 2.5rem; background: rgba(0,0,0,.4); border: 0; color: #fff; width: 3rem; height: 5rem; cursor: pointer; border-radius: 8px; }
 .slide-edge:disabled { opacity: .2; } .slide-edge-previous { left: .5rem; } .slide-edge-next { right: .5rem; }
 .muted { color: var(--muted); font-size: .85rem; }
+/* Fullscreen viewer: slide fills the screen; review controls float and auto-hide. */
+.slide-frame { position: relative; }
+.slide-edge:disabled { display: none; }
+.viewer.immersive .viewer-stage { position: relative; flex-direction: column; }
+.viewer.immersive .slide-frame, .viewer.immersive .split { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+.viewer.immersive .slide-frame > div { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.viewer.immersive .slide-frame .slide { width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; object-fit: contain; }
+.viewer.immersive .split .slide-frame .pane-title { position: absolute; top: 3.5rem; left: 1rem; z-index: 1; }
+.viewer.immersive .review-bar { position: absolute; left: 0; right: 0; bottom: 4.5rem; z-index: 2; margin: 0 !important; padding: .5rem 1rem; background: rgba(10,10,15,.85); transition: opacity .2s; }
+.viewer.immersive .review-note { display: none; }
+.viewer.immersive.controls-hidden .review-bar, .viewer.immersive.controls-hidden .slide-edge { opacity: 0; pointer-events: none; }
+.viewer.immersive .live-pane .slide { width: 100%; height: auto; max-height: 30vh; }
 </style>
 </head>
 <body>
@@ -653,17 +665,17 @@ function viewerPage(root, admission, title, onLeave) {
     const liveSlide = deckOnly ? slideImage(deck.deckId, deck.deckRevision, deck.presenterSlide, membership) : liveBox;
     const shown = review ?? deck.presenterSlide;
     const parts = [];
-    if (review === null) parts.push(h('div', { style: 'position:relative' }, liveSlide, ...edges(shown)));
+    if (review === null) parts.push(h('div', { class: 'slide-frame' }, liveSlide, ...edges(shown)));
     else parts.push(h('div', { class: 'split' },
       h('section', { class: 'live-pane' }, h('p', { class: 'pane-title' }, `Presenter — Live · Slide ${deck.presenterSlide}`), liveSlide),
-      h('section', { style: 'position:relative' }, h('p', { class: 'pane-title' }, `Your review · Slide ${review}`), slideImage(deck.deckId, deck.deckRevision, review, membership), ...edges(shown))));
+      h('section', { class: 'slide-frame' }, h('p', { class: 'pane-title' }, `Your review · Slide ${review}`), slideImage(deck.deckId, deck.deckRevision, review, membership), ...edges(shown))));
     if (!reviewLocked) {
-      parts.push(h('div', { class: 'toolbar', style: 'margin-top:.75rem' },
+      parts.push(h('div', { class: 'toolbar review-bar', style: 'margin-top:.75rem' },
         h('label', { class: 'muted' }, 'Review an available slide ', h('select', { class: 'input', onchange: e => select(Number(e.target.value)) },
           Array.from({ length: deck.presenterSlide }, (_, i) => h('option', { value: i + 1, selected: i + 1 === shown }, `Slide ${i + 1}${i + 1 === deck.presenterSlide ? ' — Live' : ''}`)))),
         review !== null ? h('button', { class: 'btn btn-primary', onclick: () => select(deck.presenterSlide) }, 'Back to Live') : null));
     }
-    parts.push(h('p', { class: 'muted' }, reviewLocked ? 'Presenter locked earlier slides. You are following the live slide.' : `${deck.totalSlides - deck.presenterSlide} future slides locked`));
+    parts.push(h('p', { class: 'muted review-note' }, reviewLocked ? 'Presenter locked earlier slides. You are following the live slide.' : `${deck.totalSlides - deck.presenterSlide} future slides locked`));
     swap(stage, ...parts);
     if (!deckOnly) attachVideo();
   }
