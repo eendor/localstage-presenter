@@ -1,0 +1,80 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: make test
+      - name: package
+        run: |
+          mkdir -p dist/localstage
+          cp localstage README.md dist/localstage/
+          printf '#!/bin/sh\ncd "$(dirname "$0")" || exit 1\ncommand -v pdftoppm >/dev/null || echo "Note: install poppler-utils to upload PDF decks."\nOPEN_BROWSER=1 exec ./localstage\n' > dist/localstage/start.sh
+          chmod +x dist/localstage/start.sh dist/localstage/localstage
+          tar -C dist -czf localstage-linux-x86_64.tar.gz localstage
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: localstage-linux-x86_64.tar.gz }
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install poppler
+      - run: make test
+      - name: universal build
+        run: |
+          make clean
+          make CFLAGS="-O2 -arch arm64 -arch x86_64"
+          lipo -info localstage
+      - name: package
+        run: |
+          mkdir -p dist/localstage
+          cp localstage README.md dist/localstage/
+          printf '#!/bin/sh\ncd "$(dirname "$0")" || exit 1\nxattr -d com.apple.quarantine ./localstage 2>/dev/null\ncommand -v pdftoppm >/dev/null || echo "Note: brew install poppler to upload PDF decks."\nOPEN_BROWSER=1 exec ./localstage\n' > dist/localstage/start.command
+          chmod +x dist/localstage/start.command dist/localstage/localstage
+          cd dist && zip -qry ../localstage-macos-universal.zip localstage
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: localstage-macos-universal.zip }
+
+  windows:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
+      - run: make windows
+      - name: package
+        run: |
+          mkdir -p dist/localstage
+          cp localstage.exe run-localstage.bat README.md dist/localstage/
+          cd dist && zip -qr ../localstage-windows.zip localstage
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: localstage-windows.zip }
+
+  publish:
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            localstage-linux-x86_64.tar.gz
+            localstage-macos-universal.zip
+            localstage-windows.zip
+          body: |
+            Download the file for your system, unzip, and run:
+            - **Windows:** double-click `run-localstage.bat`
+            - **macOS:** double-click `start.command` (Apple Silicon and Intel). PDF decks: `brew install poppler`
+            - **Linux:** run `./start.sh`. PDF decks: install `poppler-utils`
