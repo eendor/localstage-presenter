@@ -67,12 +67,14 @@ See [NETWORK.md](NETWORK.md) for network setup and troubleshooting.
 
 ## Android
 
-`android/app.c` is the app: a NativeActivity in C, plus a tiny `Main.java` that only opens Android's file picker for the page's file button. It runs the server on a thread and shows the presenter page in a WebView built through JNI. PPTX files are drawn in the browser (pptx-renderer + html2canvas, `web/vendor`) and uploaded as slide images; computers use LibreOffice when installed and fall back to the browser otherwise. The server follows a hotspot or tether adapter automatically while no presentation is running. Shared PDFs are copied to the app's storage and picked up by the page via `GET /api/shared-deck`.
+`android/app.c` is the app: a NativeActivity in C, plus a tiny `Main.java` (`android/java/`) that opens Android's file picker for the page's file button. It runs the server on a thread and shows the presenter page in a WebView built through JNI. PPTX files are drawn in the browser (pptx-renderer + html2canvas, `web/vendor`) and uploaded as slide images; computers use LibreOffice when installed and fall back to the browser otherwise. The server follows a hotspot or tether adapter automatically while no presentation is running. Shared PDFs are copied to the app's storage and picked up by the page via `GET /api/shared-deck`.
+
+The app uses `android:extractNativeLibs="true"` with Deflate compression to ensure broad compatibility with both 4 KB and 16 KB page-size Android kernels (Android 14/15) while keeping the APK download under 3 MB.
 
 Build the APK (needs the Android SDK and NDK):
 
 ```sh
-ANDROID_HOME=~/Android/Sdk android/build.sh   # writes LocalStage.apk
+ANDROID_HOME=~/Android/Sdk android/build.sh   # writes LocalStage.apk and localstage-android.apk
 ```
 
-Release builds are signed in CI with the `ANDROID_KEYSTORE_B64` / `ANDROID_KEYSTORE_PASS` secrets.
+The script automatically detects and signs with `~/.android/localstage-release.jks` (and password in `~/.android/localstage-release.pass`) if present, falling back to `~/.android/debug.keystore`. In CI, release builds are signed with the `ANDROID_KEYSTORE_B64` / `ANDROID_KEYSTORE_PASS` secrets.

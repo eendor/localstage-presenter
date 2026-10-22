@@ -13,12 +13,16 @@
 
 ### "Page won't open" — Can't reach the server
 
-1. **Check the address:** Are you using the correct LAN IP shown by LocalStage? `localhost` on a phone refers to the phone, not the presenter's laptop.
+1. **Check the address, protocol and port:**
+   - Are you typing the full URL with `http://` and port `:3000`? (e.g., `http://192.168.1.233:3000/join`).
+   - If you omit `:3000` or use `https://`, browsers will try port 80 or 443 where nothing is listening, giving *"Unable to connect"*.
+   - Scanning the on-screen QR code includes the exact port and protocol automatically.
+   - Note: `localhost` on a viewer's phone refers to the phone itself, not the presenter's device.
 2. **Same network:** Ensure all devices are on the same Wi-Fi or hotspot.
 3. **Firewall:** The presenter's firewall must allow incoming TCP connections on port 3000.
    - **Windows:** Allow localstage.exe through Windows Firewall → Inbound Rule for port 3000.
-4. **Client isolation:** Some routers and guest Wi-Fi networks block device-to-device traffic. Try a different network or the laptop's hotspot.
-5. **VPN:** A running VPN may route traffic away from the local network. Disconnect it.
+4. **Client isolation:** Some routers and guest Wi-Fi networks block device-to-device traffic. Try the phone or laptop's personal hotspot instead (hotspots never block client-to-client traffic).
+5. **VPN:** A running VPN on either device may route traffic away from the local LAN. Temporarily disconnect or pause the VPN, or allow local LAN bypass.
 
 ### "Page opens but video won't connect" — WebRTC issues
 

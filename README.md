@@ -81,7 +81,9 @@ It's meant for situations where the usual options don't fit:
 
 ## 📡 Trouble connecting?
 
-See **[docs/NETWORK.md](docs/NETWORK.md)** for firewall and Wi-Fi tips.
+- Make sure viewers use `http://` and port `:3000` (e.g. `http://192.168.1.x:3000/join`), or scan the QR code.
+- If on Wi-Fi with client isolation, switch the presenter to a phone hotspot.
+- See **[docs/NETWORK.md](docs/NETWORK.md)** for firewall, VPN, and Wi-Fi troubleshooting tips.
 
 ## 🛠️ For developers
 
