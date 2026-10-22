@@ -4,6 +4,13 @@ Share your screen or a slide deck with anyone on the same Wi-Fi. No internet, no
 
 This fork is a rewrite in plain C. The server is a single binary with no Node.js or npm. Browsers can't run C, so the presenter and viewer pages are one small hand-written HTML/JS file, built into the binary. Screen sharing still uses WebRTC in the browser.
 
+<p>
+  <img src="docs/presenter.png" alt="Presenter page" width="68%">
+  <img src="docs/join-phone.png" alt="Viewer join page on a phone" width="24%">
+</p>
+
+**Download:** [Windows, macOS, Linux](https://github.com/eendor/localstage-presenter/releases/latest)
+
 ## Requirements
 
 - Linux or macOS, with a C compiler (`cc`/`gcc`/`clang`) and `make`
