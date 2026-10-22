@@ -5,7 +5,7 @@ Building from source, settings, and how it works inside.
 ## Requirements
 
 - Linux or macOS, with a C compiler (`cc`/`gcc`/`clang`) and `make`
-- For deck uploads: `poppler-utils` (`pdfinfo`, `pdftoppm`). PPT and PPTX files also need LibreOffice (`soffice`).
+- PDFs are rendered in the presenter's browser with the bundled PDF.js (`web/vendor`). If that fails, the server falls back to `poppler-utils` (`pdfinfo`, `pdftoppm`) when installed. PPT and PPTX files need LibreOffice (`soffice`); standard install folders on Windows and macOS are found automatically.
 - Presenter browser: desktop Chrome or Edge. Viewers can use any current browser.
 
 ## Build and run
@@ -21,13 +21,13 @@ The server prints a one-use presenter link (`http://127.0.0.1:3000/host#...`, va
 
 ## macOS
 
-Install Xcode command line tools and `brew install poppler` (plus LibreOffice for slides), then `make run`.
+Install the Xcode command line tools, then `make run`.
 
 ## Windows
 
 Download `localstage-windows.zip` from the [Releases](https://github.com/eendor/localstage-presenter/releases) page, unzip it, and double-click **run-localstage.bat**. The presenter page opens in your browser; allow the firewall prompt so phones on your Wi-Fi can join.
 
-PDF decks need Poppler: grab a build from [poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases) and unzip it into a `poppler` folder next to `localstage.exe` (or put it on `PATH`). PowerPoint/ODP decks also need LibreOffice (`soffice` on `PATH`).
+PowerPoint decks need LibreOffice; `run-localstage.bat` offers to install it with winget.
 
 To build the exe yourself: `make windows` (MinGW cross-compiler, e.g. `pacman -S mingw-w64-gcc`) or natively in MSYS2.
 
@@ -64,3 +64,15 @@ To build the exe yourself: `make windows` (MinGW cross-compiler, e.g. `pacman -S
 - The Windows `.bat`/`.ps1` launchers are gone.
 
 See [NETWORK.md](NETWORK.md) for network setup and troubleshooting.
+
+## Android
+
+`android/app.c` is the whole app: a NativeActivity (no Java) that runs the server on a thread and shows the presenter page in a WebView built through JNI. Shared PDFs are copied to the app's storage and picked up by the page via `GET /api/shared-deck`.
+
+Build the APK (needs the Android SDK and NDK):
+
+```sh
+ANDROID_HOME=~/Android/Sdk android/build.sh   # writes LocalStage.apk
+```
+
+Release builds are signed in CI with the `ANDROID_KEYSTORE_B64` / `ANDROID_KEYSTORE_PASS` secrets.

@@ -11,6 +11,7 @@
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
+![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Written in C](https://img.shields.io/badge/written%20in-C-A8B9CC?style=flat-square&logo=c&logoColor=white)
 ![No accounts](https://img.shields.io/badge/accounts-none-ff69b4?style=flat-square)
 ![Works offline](https://img.shields.io/badge/internet-optional-orange?style=flat-square)
@@ -22,18 +23,31 @@
 
 ## 🚀 Get started in 30 seconds
 
-1. **[Download](https://github.com/eendor/localstage-presenter/releases/latest)** the file for your computer and unzip it.
+1. **[Download](https://github.com/eendor/localstage-presenter/releases/latest)** the file for your device.
 2. Start it:
-   - 🪟 Windows: double-click `run-localstage.bat`
-   - 🍎 Mac: double-click `start.command`
-   - 🐧 Linux: run `./start.sh`
+   - 🪟 Windows: unzip, double-click `run-localstage.bat`
+   - 🍎 Mac: unzip, double-click `start.command`
+   - 🐧 Linux: unzip, run `./start.sh`
+   - 🤖 Android: install `localstage-android.apk` and open **LocalStage**
 3. Show the QR code to your audience. They scan it, and they're in. 🎉
 
-> 💡 To show PDF slides, install [Poppler](https://poppler.freedesktop.org/). For PowerPoint, also install [LibreOffice](https://www.libreoffice.org/).
+> 💡 **Nothing to install.** PDF slides work right away. For PowerPoint files, the launcher offers to install [LibreOffice](https://www.libreoffice.org/) for you. Or just export your slides to PDF.
+>
+> 👥 **Your audience installs nothing either.** They only need a web browser: phone, tablet or laptop, any brand.
+
+## 🤖 Presenting from an Android phone
+
+Install `localstage-android.apk` from the [download page](https://github.com/eendor/localstage-presenter/releases/latest). Android may ask you to allow installs from your browser or Files app.
+
+1. Open **LocalStage**. The presenter screen appears with the join QR code.
+2. In your Files app (or Drive, Gmail…), open a PDF, tap **Share** or **Open with**, and pick **LocalStage**. The slides load by themselves.
+3. Tap **Start presentation** and swipe through your slides.
+
+Tip: turn on your phone's **hotspot** and have people join it. That works anywhere, even with no Wi-Fi around. Screen sharing isn't available on Android, so present a PDF.
 
 ## 🤔 What it's for
 
-LocalStage turns your laptop into a small presentation server for the room you're in. You start it and get a link and a QR code. People scan it with their phone or laptop and see your slides or your screen live in their browser. Nothing leaves your local network.
+LocalStage turns your laptop or Android phone into a small presentation server for the room you're in. You start it and get a link and a QR code. People scan it with their phone or laptop and see your slides or your screen live in their browser. Nothing leaves your local network.
 
 It's meant for situations where the usual options don't fit:
 
@@ -55,8 +69,8 @@ It's meant for situations where the usual options don't fit:
 
 | Mode | What viewers see | When to use it |
 |---|---|---|
-| **Upload a deck** (PDF, PPTX, PPT) | Sharp slide images, which you advance from your laptop | Slide presentations. No screen capture is needed and it uses very little bandwidth. Portrait PDFs are fitted automatically. |
-| **Share screen** | A live video of a window or your whole screen | Live demos, documents, anything that isn't a slide deck. |
+| **Upload a deck** (PDF, PPTX, PPT) | Sharp slide images, which you advance from your laptop or phone | Slide presentations. No screen capture is needed and it uses very little bandwidth. Portrait PDFs are fitted automatically. |
+| **Share screen** (computers only) | A live video of a window or your whole screen | Live demos, documents, anything that isn't a slide deck. |
 
 ## ⚠️ Good to know
 
@@ -83,7 +97,7 @@ Building from source, settings and how it works inside: see **[docs/TECHNICAL.md
 
 - Original app: [dizshh/localstage-presenter](https://github.com/dizshh/localstage-presenter). This fork rewrites it in C.
 - Live video: [WebRTC](https://webrtc.org/), built into every modern browser.
-- PDF slides: [Poppler](https://poppler.freedesktop.org/) (`pdftoppm`).
+- PDF slides: [PDF.js](https://mozilla.github.io/pdf.js/) by Mozilla (Apache 2.0), built in.
 - PowerPoint slides: [LibreOffice](https://www.libreoffice.org/).
 - Badges: [Shields.io](https://shields.io/).
 

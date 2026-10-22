@@ -94,6 +94,8 @@ void random_bytes(void *out, size_t n) {
         abort();
     }
 }
+#elif defined(__ANDROID__)
+void random_bytes(void *out, size_t n) { arc4random_buf(out, n); }
 #elif defined(__APPLE__)
 void random_bytes(void *out, size_t n) {
     unsigned char *p = out;

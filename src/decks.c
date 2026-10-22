@@ -140,7 +140,19 @@ void decks_convert_child(const char *dir, const char *format, int max_pages) {
     snprintf(pdf, sizeof pdf, "%s/original.%s", dir, format);
     if (strcmp(format, "pdf")) {
         const char *office = getenv("LIBREOFFICE_PATH");
-        if (!office || !*office) office = "soffice";
+        if (!office || !*office) {
+            /* Standard install locations, so a fresh LibreOffice install works without PATH changes. */
+            static const char *known[] = {
+#ifdef _WIN32
+                "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+                "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+#elif defined(__APPLE__)
+                "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+#endif
+                NULL};
+            office = "soffice";
+            for (int i = 0; known[i]; i++) if (plat_exists(known[i])) { office = known[i]; break; }
+        }
         char profile[700], env[800], xcu[800];
         snprintf(profile, sizeof profile, "%s/office-profile/user", dir);
         snprintf(xcu, sizeof xcu, "%s/registrymodifications.xcu", profile);

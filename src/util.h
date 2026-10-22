@@ -16,7 +16,12 @@ void buf_free(Buf *b);
 void buf_reserve(Buf *b, size_t extra);
 void buf_add(Buf *b, const void *data, size_t n);
 void buf_puts(Buf *b, const char *s);
-void buf_printf(Buf *b, const char *fmt, ...) __attribute__((format(gnu_printf, 2, 3)));
+#ifdef __MINGW32__
+#define LS_PRINTF gnu_printf
+#else
+#define LS_PRINTF printf
+#endif
+void buf_printf(Buf *b, const char *fmt, ...) __attribute__((format(LS_PRINTF, 2, 3)));
 void buf_consume(Buf *b, size_t n);
 /* Append s as a JSON string literal (with quotes). */
 void buf_json_str(Buf *b, const char *s);

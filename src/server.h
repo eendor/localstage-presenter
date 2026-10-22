@@ -171,6 +171,10 @@ int net_default(char *out, size_t n);
 int net_has(const char *address);
 
 /* main.c */
+int localstage_main(int argc, char **argv);
+extern volatile int ls_link_request, ls_link_ready;
+extern char ls_link[200];
+extern char ls_shared_path[600]; /* Android: where a shared PDF is dropped */
 int lan_bind(const char *address);
 void conn_close_lan(void);
 void net_info_json(Buf *b);

@@ -17,6 +17,7 @@ static const char *reason(int status) {
     case 404: return "Not Found";
     case 405: return "Method Not Allowed";
     case 409: return "Conflict";
+    case 204: return "No Content";
     case 411: return "Length Required";
     case 413: return "Payload Too Large";
     case 421: return "Misdirected Request";
@@ -207,6 +208,22 @@ static void route(Conn *c) {
             if (!query_value(c->query, "text", text, sizeof text) || !qr_svg(text, &b)) { buf_free(&b); http_error(c, 400, "Text too long for a QR code"); return; }
             http_send(c, 200, "image/svg+xml", b.d, b.len, "Cache-Control: no-store\r\n");
             buf_free(&b);
+            return;
+        }
+        if (get && !strcmp(c->path, "/api/shared-deck")) {
+            /* Android app: a PDF shared to LocalStage waits here until the presenter page takes it. */
+            if (!conn_is_host(c)) { status_only(c, 403); return; }
+            FILE *f = ls_shared_path[0] ? fopen(ls_shared_path, "rb") : NULL;
+            long size = -1;
+            if (f && fseek(f, 0, SEEK_END) == 0) size = ftell(f);
+            if (!f || size <= 0 || fseek(f, 0, SEEK_SET) != 0) { if (f) fclose(f); http_send(c, 204, "text/plain", "", 0, "Cache-Control: no-store\r\n"); return; }
+            char *data = malloc((size_t)size);
+            size_t got = data ? fread(data, 1, (size_t)size, f) : 0;
+            fclose(f);
+            remove(ls_shared_path);
+            if (got != (size_t)size) { free(data); http_error(c, 500, "Could not read the shared file"); return; }
+            http_send(c, 200, "application/pdf", data, got, "Cache-Control: no-store\r\n");
+            free(data);
             return;
         }
         if (post && !strcmp(c->path, "/api/decks")) {

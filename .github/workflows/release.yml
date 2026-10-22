@@ -19,7 +19,7 @@ jobs:
         run: |
           mkdir -p dist/localstage
           cp localstage README.md dist/localstage/
-          printf '#!/bin/sh\ncd "$(dirname "$0")" || exit 1\ncommand -v pdftoppm >/dev/null || echo "Note: install poppler-utils to upload PDF decks."\nOPEN_BROWSER=1 exec ./localstage\n' > dist/localstage/start.sh
+          cp scripts/start.sh dist/localstage/start.sh
           chmod +x dist/localstage/start.sh dist/localstage/localstage
           tar -C dist -czf localstage-linux-x86_64.tar.gz localstage
       - uses: actions/upload-artifact@v4
@@ -40,7 +40,7 @@ jobs:
         run: |
           mkdir -p dist/localstage
           cp localstage README.md dist/localstage/
-          printf '#!/bin/sh\ncd "$(dirname "$0")" || exit 1\nxattr -d com.apple.quarantine ./localstage 2>/dev/null\ncommand -v pdftoppm >/dev/null || echo "Note: brew install poppler to upload PDF decks."\nOPEN_BROWSER=1 exec ./localstage\n' > dist/localstage/start.command
+          cp scripts/start.sh dist/localstage/start.command
           chmod +x dist/localstage/start.command dist/localstage/localstage
           cd dist && zip -qry ../localstage-macos-universal.zip localstage
       - uses: actions/upload-artifact@v4
@@ -60,8 +60,24 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: windows, path: localstage-windows.zip }
 
+  android:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: build APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"; export KEYSTORE="$RUNNER_TEMP/release.jks"; fi
+          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          android/build.sh
+          mv LocalStage.apk localstage-android.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: localstage-android.apk }
+
   publish:
-    needs: [linux, macos, windows]
+    needs: [linux, macos, windows, android]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -73,8 +89,12 @@ jobs:
             localstage-linux-x86_64.tar.gz
             localstage-macos-universal.zip
             localstage-windows.zip
+            localstage-android.apk
           body: |
-            Download the file for your system, unzip, and run:
-            - **Windows:** double-click `run-localstage.bat`
-            - **macOS:** double-click `start.command` (Apple Silicon and Intel). PDF decks: `brew install poppler`
-            - **Linux:** run `./start.sh`. PDF decks: install `poppler-utils`
+            Download the file for your device and open it:
+            - **Windows:** unzip, double-click `run-localstage.bat`
+            - **macOS:** unzip, double-click `start.command` (Apple Silicon and Intel)
+            - **Linux:** unzip, run `./start.sh`
+            - **Android:** install `localstage-android.apk`, then share a PDF to LocalStage
+
+            PDF slides work out of the box. PowerPoint files need LibreOffice; the launcher offers to install it.

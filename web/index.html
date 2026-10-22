@@ -355,10 +355,25 @@ function hostPage(root) {
   const file = h('input', { class: 'input', type: 'file', accept: '.pdf,.pptx,.ppt', onchange: upload });
   const presentBtn = h('button', { class: 'btn btn-primary', hidden: true, onclick: () => S.client && S.uploaded && S.client.send({ type: 'deck:activate', deckId: S.uploaded.id, deckRevision: 1, totalSlides: S.uploaded.totalSlides }) }, 'Present uploaded deck');
   const deckView = h('div');
-  const deckCard = h('section', { class: 'card' }, h('h2', {}, 'Presentation deck'), h('label', { class: 'label' }, 'Upload PDF, PPTX or PPT', file), deckBusy, deckError, presentBtn, deckView);
+  const inApp = /LocalStageApp/.test(navigator.userAgent);
+  const deckCard = h('section', { class: 'card' }, h('h2', {}, 'Presentation deck'),
+    inApp ? h('p', { class: 'muted' }, 'Open your Files app, pick a PDF, then tap Share (or Open with) and choose LocalStage. It appears here automatically.')
+          : h('label', { class: 'label' }, 'Upload PDF, PPTX or PPT', file),
+    deckBusy, deckError, presentBtn, deckView);
+  if (inApp) {
+    // Android app: screen capture isn't available, so present decks only.
+    source.value = 'deck'; source.querySelector('option[value=screen]').remove();
+    setInterval(async () => {
+      if (!S.token || deckBusy.hidden === false) return;
+      try {
+        const r = await fetch('/api/shared-deck', { headers: { Authorization: `Bearer ${S.token}` }, cache: 'no-store' });
+        if (r.status === 200) upload(new File([await r.blob()], 'shared.pdf', { type: 'application/pdf' }));
+      } catch (e) { /* try again next tick */ }
+    }, 1500);
+  }
   let deckKey = '';
-  async function upload() {
-    const f = file.files[0]; if (!f) return;
+  async function upload(shared) {
+    const f = shared instanceof File ? shared : file.files[0]; if (!f) return;
     setError(deckError, ''); file.disabled = true; deckBusy.hidden = false;
     try {
       const ext = (f.name.split('.').pop() || '').toLowerCase();

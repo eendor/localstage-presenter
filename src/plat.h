@@ -25,6 +25,7 @@ typedef struct pollfd plat_pollfd;
 /* Process start-up: sockets, signals, PATH for bundled tools. argv0 is the program path. */
 void plat_init(const char *argv0);
 int plat_stopping(void); /* Ctrl+C / SIGTERM received */
+void plat_request_stop(void);
 
 /* Listening socket on IPv4 address:port. Returns SOCK_INVALID and sets *err (an errno-like code) on failure. */
 sock_t sock_listen(const char *address, int port, int *err);

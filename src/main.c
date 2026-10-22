@@ -99,7 +99,12 @@ static void on_writable(Conn *c) {
     }
 }
 
-int main(int argc, char **argv) {
+/* Lets an embedding app (Android) ask for a fresh one-use presenter link. */
+volatile int ls_link_request, ls_link_ready;
+char ls_link[200];
+char ls_shared_path[600];
+
+int localstage_main(int argc, char **argv) {
     /* Windows runs deck conversion by re-launching this program. */
     if (argc == 5 && !strcmp(argv[1], "--convert")) {
         decks_convert_child(argv[2], argv[3], atoi(argv[4]));
@@ -146,6 +151,13 @@ int main(int argc, char **argv) {
     plat_pollfd *pfds = NULL;
     int cap = 0;
     while (!plat_stopping()) {
+        if (__atomic_load_n(&ls_link_request, __ATOMIC_ACQUIRE)) {
+            random_hex(app.bootstrap, 32);
+            app.bootstrap_expires = now_mono_ms() + 5 * 60000;
+            snprintf(ls_link, sizeof ls_link, "http://127.0.0.1:%d/host#%s", app.port, app.bootstrap);
+            __atomic_store_n(&ls_link_request, 0, __ATOMIC_RELEASE);
+            __atomic_store_n(&ls_link_ready, 1, __ATOMIC_RELEASE);
+        }
         if (cap < app.nconns + 2) {
             cap = app.nconns + 66;
             pfds = realloc(pfds, (size_t)cap * sizeof *pfds);
@@ -220,3 +232,7 @@ int main(int argc, char **argv) {
     free(app.conns);
     return 0;
 }
+
+#ifndef LOCALSTAGE_NO_MAIN
+int main(int argc, char **argv) { return localstage_main(argc, argv); }
+#endif

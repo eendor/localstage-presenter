@@ -4,3 +4,4 @@ src/*.o
 *.log
 .env
 localstage.exe
+LocalStage.apk

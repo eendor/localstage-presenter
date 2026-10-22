@@ -14,6 +14,7 @@
 
 static volatile sig_atomic_t stopping;
 int plat_stopping(void) { return stopping; }
+void plat_request_stop(void) { stopping = 1; }
 
 #ifdef _WIN32
 /* ======================= Windows ======================= */
