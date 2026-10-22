@@ -221,7 +221,7 @@ static const char *write_pdf(void) {
         "<< /Type /Catalog /Pages 2 0 R >>",
         "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 320 180] >>",
-        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 320 180] >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 180 320] >>", /* portrait */
     };
     Buf b = {0};
     buf_puts(&b, "%PDF-1.4\n");
@@ -346,6 +346,13 @@ static void test_session(void) {
     buf_free(&r.raw);
     r = req("GET", path, auth, NULL);
     CHECK(r.status == 200, "host reads any slide (%d)", r.status);
+    if (r.status == 200) {
+        /* PNG IHDR: width at byte 16, height at byte 20 (big-endian). */
+        const uint8_t *png = (const uint8_t *)r.body;
+        unsigned pw = (unsigned)png[16] << 24 | png[17] << 16 | png[18] << 8 | png[19];
+        unsigned ph = (unsigned)png[20] << 24 | png[21] << 16 | png[22] << 8 | png[23];
+        CHECK(ph == 1920 && pw < ph, "portrait page rendered tall (%ux%u)", pw, ph);
+    }
     buf_free(&r.raw);
     r = req("GET", path, NULL, NULL);
     CHECK(r.status == 401 || r.status == 403, "anonymous slide refused (%d)", r.status);

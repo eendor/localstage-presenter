@@ -34,6 +34,7 @@ The server prints a one-use presenter link (`http://127.0.0.1:3000/host#...`, va
 
 - The presenter page is served only on 127.0.0.1. Viewers reach the server on the selected LAN adapter.
 - Signaling runs over a WebSocket at `/ws`. Video goes peer-to-peer over WebRTC with no STUN or TURN servers, so it never leaves the local network.
+- PDF, PPTX and PPT decks are supported. Portrait and landscape pages are detected per page: each is rendered with its long side at 1920 px and shown fitted to the screen without cropping.
 - Decks are converted to PNG slides in a separate process, with a 120-second limit. Viewers can fetch the live slide and earlier slides only. They can't see future slides, and when the presenter turns on the review lock they see only the live slide.
 
 ## Changes from the original

@@ -229,12 +229,12 @@ static void child_convert(const char *dir, const char *format, int max_pages) {
         snprintf(m, sizeof m, "Deck exceeds %d slides", max_pages);
         child_fail(dir, m);
     }
-    if (w <= 0 || h <= 0) { w = 612; h = 792; }
-    double scale = fmin(fmin(1920 / w, 1080 / h), 2);
-    char dpi[32], prefix[600];
-    snprintf(dpi, sizeof dpi, "%.3f", 72 * scale);
+    (void)w; (void)h;
+    /* Scale each page so its long side is 1920 px: landscape pages get 1920 wide,
+       portrait pages 1920 tall, and mixed-orientation PDFs are handled per page. */
+    char prefix[600];
     snprintf(prefix, sizeof prefix, "%s/page", dir);
-    char *rargv[] = {"pdftoppm", "-png", "-r", dpi, pdf, prefix, NULL};
+    char *rargv[] = {"pdftoppm", "-png", "-scale-to", "1920", pdf, prefix, NULL};
     rc = run(rargv, NULL, errlog);
     if (rc != 0) {
         char tail[512];
