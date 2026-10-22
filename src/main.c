@@ -145,7 +145,13 @@ int localstage_main(int argc, char **argv) {
     for (int i = 0; i < n; i++) printf("%s: http://%s:%d/join\n", list[i].name, list[i].address, app.port);
     if (!n) printf("No network adapter found yet. Viewers can join once one connects.\n");
     const char *ob = getenv("OPEN_BROWSER");
+#ifdef _WIN32
+    /* Double-clicking the .exe should just work: open the browser unless told not to. */
+    if (!ob || strcmp(ob, "0")) plat_open_browser(url);
+    printf("\nLeave this window open while you present. Close it to stop LocalStage.\n");
+#else
     if (ob && !strcmp(ob, "1")) plat_open_browser(url);
+#endif
 
     int64_t next_heartbeat = now_mono_ms() + HEARTBEAT_MS, next_net = now_mono_ms() + NETWORK_CHECK_MS;
     plat_pollfd *pfds = NULL;
@@ -234,5 +240,12 @@ int localstage_main(int argc, char **argv) {
 }
 
 #ifndef LOCALSTAGE_NO_MAIN
-int main(int argc, char **argv) { return localstage_main(argc, argv); }
+int main(int argc, char **argv) {
+    int rc = localstage_main(argc, argv);
+#ifdef _WIN32
+    /* Started by double-click: keep the window open so the error can be read. */
+    if (rc != 0) { fputs("\nPress Enter to close.", stderr); getchar(); }
+#endif
+    return rc;
+}
 #endif

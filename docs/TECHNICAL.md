@@ -25,9 +25,9 @@ Install the Xcode command line tools, then `make run`.
 
 ## Windows
 
-Download `localstage-windows.zip` from the [Releases](https://github.com/eendor/localstage-presenter/releases) page, unzip it, and double-click **run-localstage.bat**. The presenter page opens in your browser; allow the firewall prompt so phones on your Wi-Fi can join.
+Download `LocalStage-windows.exe` from the [Releases](https://github.com/eendor/localstage-presenter/releases) page and double-click it. The presenter page opens in your browser; allow the firewall prompt so phones on your Wi-Fi can join.
 
-PowerPoint decks need LibreOffice; `run-localstage.bat` offers to install it with winget.
+Release builds ship a single `LocalStage-windows.exe`: double-click opens the browser (set `OPEN_BROWSER=0` to skip). `scripts/run-localstage.bat` is an optional launcher that also offers to install LibreOffice with winget.
 
 To build the exe yourself: `make windows` (MinGW cross-compiler, e.g. `pacman -S mingw-w64-gcc`) or natively in MSYS2.
 

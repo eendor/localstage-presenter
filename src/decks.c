@@ -177,7 +177,13 @@ void decks_convert_child(const char *dir, const char *format, int max_pages) {
         if (rc != 0 || !plat_exists(pdf)) {
             char tail[512];
             read_tail(errlog, tail, sizeof tail);
-            if (rc == 127) child_fail(dir, "Office conversion requires LibreOffice. Install it, set LIBREOFFICE_PATH to soffice, or export your deck to PDF.");
+            if (rc == 127) child_fail(dir, 
+#ifdef _WIN32
+                "PowerPoint files need LibreOffice. Install it (winget install TheDocumentFoundation.LibreOffice or libreoffice.org), or export your deck to PDF."
+#else
+                "PowerPoint files need LibreOffice. Install it from libreoffice.org, or export your deck to PDF."
+#endif
+);
             child_fail(dir, tail[0] ? tail : "LibreOffice could not convert the file");
         }
     }

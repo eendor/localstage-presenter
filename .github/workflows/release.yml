@@ -55,10 +55,9 @@ jobs:
       - name: package
         run: |
           mkdir -p dist/localstage
-          cp localstage.exe scripts/run-localstage.bat README.md dist/localstage/
-          cd dist && zip -qr ../localstage-windows.zip localstage
+          cp localstage.exe LocalStage-windows.exe
       - uses: actions/upload-artifact@v4
-        with: { name: windows, path: localstage-windows.zip }
+        with: { name: windows, path: LocalStage-windows.exe }
 
   android:
     runs-on: ubuntu-22.04
@@ -88,11 +87,11 @@ jobs:
           files: |
             localstage-linux-x86_64.tar.gz
             localstage-macos-universal.zip
-            localstage-windows.zip
+            LocalStage-windows.exe
             localstage-android.apk
           body: |
             Download the file for your device and open it:
-            - **Windows:** unzip, double-click `run-localstage.bat`
+            - **Windows:** download `LocalStage-windows.exe` and double-click it
             - **macOS:** unzip, double-click `start.command` (Apple Silicon and Intel)
             - **Linux:** unzip, run `./start.sh`
             - **Android:** install `localstage-android.apk`, then share a PDF to LocalStage

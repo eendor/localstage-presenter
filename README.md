@@ -25,13 +25,15 @@
 
 1. **[Download](https://github.com/eendor/localstage-presenter/releases/latest)** the file for your device.
 2. Start it:
-   - 🪟 Windows: unzip, double-click `run-localstage.bat`
+   - 🪟 Windows: double-click `LocalStage-windows.exe` (no install, no unzip)
    - 🍎 Mac: unzip, double-click `start.command`
    - 🐧 Linux: unzip, run `./start.sh`
    - 🤖 Android: install `localstage-android.apk` and open **LocalStage**
+
+   Windows may show "Windows protected your PC" the first time: click **More info → Run anyway**. On a Mac, right-click `start.command` → **Open** the first time.
 3. Show the QR code to your audience. They scan it, and they're in. 🎉
 
-> 💡 **Nothing to install.** PDF slides work right away. For PowerPoint files, the launcher offers to install [LibreOffice](https://www.libreoffice.org/) for you. Or just export your slides to PDF.
+> 💡 **Nothing to install.** PDF slides work right away. For PowerPoint files, install [LibreOffice](https://www.libreoffice.org/) (Mac and Linux launchers offer to do it for you). Or just export your slides to PDF.
 >
 > 👥 **Your audience installs nothing either.** They only need a web browser: phone, tablet or laptop, any brand.
 
