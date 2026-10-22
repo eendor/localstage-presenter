@@ -36,20 +36,34 @@ javac -source 8 -target 8 -nowarn -classpath "$PLATFORM/android.jar" -d "$OUT/cl
 "$BT/aapt2" compile --dir android/res -o "$OUT/res.zip"
 "$BT/aapt2" link -o "$OUT/unsigned.apk" -I "$PLATFORM/android.jar" --manifest android/AndroidManifest.xml \
   --min-sdk-version $MIN --target-sdk-version 34 "$OUT/res.zip"
-(cd "$OUT/apk" && zip -q -0 -r ../unsigned.apk lib classes.dex 2>/dev/null || python3 -I -c "
-import zipfile,os,sys
+(cd "$OUT/apk" && zip -q -r ../unsigned.apk lib classes.dex 2>/dev/null || python3 -I -c "
+import zipfile,os
 z=zipfile.ZipFile('../unsigned.apk','a')
-z.write('classes.dex')
+z.write('classes.dex', compress_type=zipfile.ZIP_DEFLATED)
 for d,_,fs in os.walk('lib'):
-    for f in fs: z.write(os.path.join(d,f), compress_type=zipfile.ZIP_STORED)
+    for f in fs: z.write(os.path.join(d,f), compress_type=zipfile.ZIP_DEFLATED)
 z.close()")
 "$BT/zipalign" -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 
-KS=${KEYSTORE:-$HOME/.android/debug.keystore}
-if [ ! -f "$KS" ]; then
-  mkdir -p "$(dirname "$KS")"
-  keytool -genkeypair -keystore "$KS" -storepass android -keypass android -alias androiddebugkey \
-    -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000 >/dev/null
+KS=${KEYSTORE:-}
+KS_PASS=${KEYSTORE_PASS:-}
+if [ -z "$KS" ] && [ -f "$HOME/.android/localstage-release.jks" ]; then
+  KS="$HOME/.android/localstage-release.jks"
+  if [ -z "$KS_PASS" ] && [ -f "$HOME/.android/localstage-release.pass" ]; then
+    KS_PASS=$(cat "$HOME/.android/localstage-release.pass")
+  fi
 fi
-"$BT/apksigner" sign --ks "$KS" --ks-pass "pass:${KEYSTORE_PASS:-android}" --out LocalStage.apk "$OUT/aligned.apk"
-echo "Built LocalStage.apk"
+if [ -z "$KS" ]; then
+  KS="$HOME/.android/debug.keystore"
+  KS_PASS="android"
+  if [ ! -f "$KS" ]; then
+    mkdir -p "$(dirname "$KS")"
+    keytool -genkeypair -keystore "$KS" -storepass android -keypass android -alias androiddebugkey \
+      -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000 >/dev/null
+  fi
+fi
+
+"$BT/apksigner" sign --ks "$KS" --ks-pass "pass:$KS_PASS" --out LocalStage.apk "$OUT/aligned.apk"
+cp -f LocalStage.apk localstage-android.apk
+[ -f LocalStage.apk.idsig ] && cp -f LocalStage.apk.idsig localstage-android.apk.idsig 2>/dev/null || true
+echo "Built LocalStage.apk and localstage-android.apk (signed with $(basename "$KS"))"

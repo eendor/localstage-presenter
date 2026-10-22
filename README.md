@@ -28,7 +28,7 @@
    - 🪟 Windows: double-click `LocalStage-windows.exe` (no install, no unzip)
    - 🍎 Mac: unzip, double-click `start.command`
    - 🐧 Linux: unzip, run `./start.sh`
-   - 🤖 Android: install `localstage-android.apk` and open **LocalStage**
+   - 🤖 Android: install [`localstage-android.apk`](localstage-android.apk) and open **LocalStage**
 
    Windows may show "Windows protected your PC" the first time: click **More info → Run anyway**. On a Mac, right-click `start.command` → **Open** the first time.
 3. Show the QR code to your audience. They scan it, and they're in. 🎉
@@ -39,7 +39,7 @@
 
 ## 🤖 Presenting from an Android phone
 
-Install `localstage-android.apk` from the [download page](https://github.com/eendor/localstage-presenter/releases/latest). Android may ask you to allow installs from your browser or Files app.
+Install [`localstage-android.apk`](localstage-android.apk) (or from the [releases page](https://github.com/eendor/localstage-presenter/releases/latest)). Android may ask you to allow installs from your browser or Files app.
 
 1. Open **LocalStage**. The presenter screen appears with the join QR code.
 2. Tap **Choose slides** and pick a **PDF or PowerPoint (.pptx)**. The phone turns it into slides by itself. (Or **Share** a PDF to LocalStage from any app.)
