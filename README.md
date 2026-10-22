@@ -16,6 +16,7 @@ This fork is a rewrite in plain C. The server is a single binary with no Node.js
 make            # builds ./localstage
 make test       # end-to-end tests (starts a server on a random port)
 ./localstage
+# or simply: ./run.sh   (builds, starts, opens the browser)
 ```
 
 The server prints a one-use presenter link (`http://127.0.0.1:3000/host#...`, valid for 5 minutes) and the join address for each network adapter. Open the presenter link on this computer. Viewers open the `/join` address or scan the QR code.

@@ -33,4 +33,7 @@ test: localstage build/test
 clean:
 	rm -rf build localstage src/*.o
 
-.PHONY: all test clean
+.PHONY: all test clean run
+
+run: localstage
+	OPEN_BROWSER=1 ./localstage
