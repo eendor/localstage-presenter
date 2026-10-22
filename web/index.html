@@ -42,7 +42,7 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .qr { display: block; width: 200px; height: 200px; margin-top: .75rem; background: #fff; border-radius: 8px; }
 /* Fit any page shape: landscape fills the width, portrait is limited by height and centered. */
-.slide { display: block; max-width: 100%; max-height: 75vh; width: auto; height: auto; margin: 0 auto; object-fit: contain; border-radius: 8px; }
+.slide { display: block; max-width: 100%; max-height: 55vh; width: auto; height: auto; margin: 0 auto; object-fit: contain; border-radius: 8px; }
 .main-slide, .split section > div { background: #000; border-radius: 8px; display: flex; justify-content: center; }
 .thumbnails .slide { height: 90px; max-height: 90px; width: 100%; background: #000; }
 .thumbnails { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .5rem; max-height: 320px; overflow: auto; }
@@ -285,11 +285,12 @@ function hostPage(root) {
   const startBtn = h('button', { class: 'btn btn-primary', onclick: start }, 'Start sharing');
   const setup = h('section', { class: 'card setup' }, h('h2', {}, 'Start a presentation'),
     h('label', { class: 'label' }, 'Presentation title', title), h('label', { class: 'label' }, 'Optional six-digit PIN', pin),
-    h('label', { class: 'label' }, 'Source', source), h('label', { class: 'label' }, 'Maximum viewers (1–50)', maxViewers), capacityNote, capacityWarn, startBtn);
+    h('label', { class: 'label' }, 'Source', source), h('p', { class: 'muted' }, 'Share screen: pick the window you want to show (not this tab, or you will see a mirror effect). Upload presentation: viewers get your PDF/PPTX slides directly — upload it below and this switches automatically.'), h('label', { class: 'label' }, 'Maximum viewers (1–50)', maxViewers), capacityNote, capacityWarn, startBtn);
   const limit = () => Math.max(1, Math.min(50, Math.floor(Number(maxViewers.value)) || 1));
   const uploadMbps = n => Math.round(n * (QUALITY[S.quality].kbps + (S.hasAudio && S.audio ? 96 : 0)) * 11 / 1000) / 10;
   function capacity() {
     const n = limit(), deck = source.value === 'deck';
+    if (!S.busy) startBtn.textContent = deck ? 'Start presentation' : 'Start sharing';
     capacityNote.textContent = deck ? `Uploaded decks are served as slide images rather than continuous video, so ${n} viewers is practical with a normal Wi-Fi access point.`
       : `Live screen video is uploaded separately to every viewer — up to ~${uploadMbps(n)} Mbps from the presenter at ${n} viewers with ${QUALITY[S.quality].label}.`;
     capacityWarn.hidden = n <= 10;
@@ -349,7 +350,7 @@ function hostPage(root) {
     try {
       const ext = (f.name.split('.').pop() || '').toLowerCase();
       const data = await jsonOrError(await fetch(`/api/decks?format=${encodeURIComponent(ext)}`, { method: 'POST', headers: { Authorization: `Bearer ${S.token}`, 'Content-Type': 'application/octet-stream' }, body: f }));
-      S.uploaded = data; S.preview = 1; renderDeck();
+      S.uploaded = data; S.preview = 1; if (!S.session) { source.value = 'deck'; capacity(); } renderDeck();
     } catch (e) { setError(deckError, e.message); }
     finally { file.disabled = false; deckBusy.hidden = true; file.value = ''; }
   }
@@ -451,7 +452,7 @@ function hostPage(root) {
   function end() {
     if (S.client) S.client.send({ type: 'host:end' });
     cleanup(); S.session = null; S.viewers = []; S.busy = false; S.uploaded = null; S.deck = null; S.preview = 1;
-    startBtn.disabled = false; startBtn.textContent = 'Start sharing';
+    startBtn.disabled = false; S.busy = false; capacity();
     renderLive(); renderDeck();
   }
   async function start() {
