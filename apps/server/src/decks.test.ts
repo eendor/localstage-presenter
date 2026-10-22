@@ -46,6 +46,24 @@ test('PDF upload renders locally and slide access follows authoritative bounds',
   } finally { await decks.clear(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
 
+test('upload limit rejects oversized decks with a clear message', async () => {
+  const previous = process.env.MAX_DECK_BYTES;
+  process.env.MAX_DECK_BYTES = '2kb';
+  const auth = new HostAuth(); const token = auth.authenticateHost(auth.getBootstrapSecret())!;
+  const decks = new DeckStore(); const app = express(); decks.setup(app, auth);
+  const server = createServer(app); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  try {
+    const response = await fetch(`${base}/api/decks?format=pdf`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' }, body: Buffer.alloc(4096, 0x20) });
+    const data = await response.json() as { error?: string };
+    assert.equal(response.status, 413);
+    assert.match(data.error || '', /Maximum deck size is 2 KB/);
+  } finally {
+    if (previous === undefined) delete process.env.MAX_DECK_BYTES; else process.env.MAX_DECK_BYTES = previous;
+    server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
 test('renderer enforces page limit and rejects invalid PDF', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'localstage-test-'));
   try {

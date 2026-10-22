@@ -12,6 +12,8 @@ export interface Session {
   title: string;
   status: SessionStatus;
   joinLocked: boolean;
+  /** When true, viewers may only see the presenter's current slide. */
+  reviewLocked: boolean;
   maxViewers: number;
   createdAt: number;
 }
@@ -189,6 +191,11 @@ export interface HostLockMessage {
 }
 
 // Direction: Host → Server
+export interface HostReviewLockMessage {
+  type: 'host:review-lock';
+  locked: boolean;
+}
+
 export interface HostRemoveViewerMessage {
   type: 'host:remove-viewer';
   viewerId: string;
@@ -232,6 +239,7 @@ export type ClientMessage =
   | DeckActivateMessage
   | PresenterNavigateMessage
   | HostLockMessage
+  | HostReviewLockMessage
   | HostRemoveViewerMessage
   | HostEndMessage
   | VisualStateMessage;
@@ -253,7 +261,7 @@ export type ServerMessage =
 
 const VALID_CLIENT_TYPES = new Set<string>([
   'host:create', 'viewer:join', 'rtc:offer', 'rtc:answer', 'rtc:ice',
-  'deck:activate', 'presenter:navigate', 'host:lock', 'host:remove-viewer',
+  'deck:activate', 'presenter:navigate', 'host:lock', 'host:review-lock', 'host:remove-viewer',
   'host:end', 'visual:state',
   'host:status', 'viewer:leave',
 ]);
@@ -272,7 +280,7 @@ export function validateClientMessage(value: unknown): value is ClientMessage {
   switch (m.type) {
     case 'host:create': return (m.source === undefined || m.source === 'screen' || m.source === 'deck') && text('token') && text('title') && optional('pin', 6) && (!m.pin || /^\d{6}$/.test(String(m.pin))) && integer('maxViewers') && Number(m.maxViewers) <= 50;
     case 'viewer:join': return text('sessionId') && optional('displayName', 64) && optional('pin', 6) && optional('token');
-    case 'host:lock': return typeof m.locked === 'boolean';
+    case 'host:lock': case 'host:review-lock': return typeof m.locked === 'boolean';
     case 'host:remove-viewer': return text('viewerId');
     case 'host:status': return m.status === 'live' || m.status === 'paused';
     case 'host:end': case 'viewer:leave': return true;

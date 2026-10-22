@@ -27,6 +27,7 @@ export class SessionStore {
       title,
       status: 'waiting',
       joinLocked: false,
+      reviewLocked: false,
       maxViewers: maxViewers ?? DEFAULT_MAX_VIEWERS,
       createdAt: Date.now(),
       pinHash: pin ? this.hashPin(pin) : undefined,
@@ -52,6 +53,13 @@ export class SessionStore {
     const session = this.sessions.get(sessionId);
     if (!session) return false;
     session.status = status;
+    return true;
+  }
+
+  setReviewLocked(sessionId: string, locked: boolean): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+    session.reviewLocked = locked;
     return true;
   }
 

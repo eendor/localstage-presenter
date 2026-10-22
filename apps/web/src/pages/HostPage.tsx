@@ -7,6 +7,7 @@ import { SignalingClient, signalingUrl } from '../net/signaling-client';
 import { capture, createSlate, stopCapture } from '../media/capture';
 import { HostPeers } from '../media/host-peers';
 import { StatsSampler } from '../media/stats';
+import { PresenterScript } from '../components/PresenterScript';
 
 export function HostPage() {
   const [title, setTitle] = useState('My Presentation');
@@ -27,6 +28,7 @@ export function HostPage() {
   const [alwaysLive, setAlwaysLive] = useState(false);
   const [stillCount, setStillCount] = useState(0);
   const [sourceChoice, setSourceChoice] = useState<'screen' | 'deck'>('screen');
+  const [maxViewers, setMaxViewers] = useState('5');
   const [uploaded, setUploaded] = useState<UploadedDeck | null>(null);
   const [deckState, setDeckState] = useState<DeckState | null>(null);
   const alwaysLiveRef = useRef(false);
@@ -39,6 +41,12 @@ export function HostPage() {
   const token = useRef(sessionStorage.getItem('hostToken') || '');
   const paused = useRef(false);
   const preset = useRef(quality);
+  const viewerLimit = Math.max(1, Math.min(50, Number(maxViewers) || 1));
+  /** Worst-case presenter upload: each viewer receives a separate WebRTC stream. */
+  function estimatedUploadMbps(count: number) {
+    const audioKbps = hasAudio && audio ? 96 : 0;
+    return Math.round(count * (QUALITY_PRESETS[quality].targetBitrateKbps + audioKbps) * 11 / 1000) / 10;
+  }
   const url = address ? `http://${address}:${serverPort}/join` : '';
 
   function cleanup() {
@@ -90,13 +98,15 @@ export function HostPage() {
     if (!token.current) { setError('Open the one-use presenter link printed by the server.'); return; }
     if (pin && !/^\d{6}$/.test(pin)) { setError('PIN must contain exactly six digits.'); return; }
     if (sourceChoice === 'deck' && !uploaded) { setError('Upload and preview a deck before starting.'); return; }
+    const limit = Number(maxViewers);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) { setError('Maximum viewers must be a whole number between 1 and 50.'); return; }
     setBusy(true);
     try {
       if (sourceChoice === 'screen') { const stream = await capture(quality); source.current = stream; show(stream); watch(stream); }
       const ws = new SignalingClient({ url: signalingUrl(), maxReconnectAttempts: 0,
         onStateChange: state => {
           setConnection(state);
-          if (state === 'connected') ws.send({ type: 'host:create', token: token.current, title, pin: pin || undefined, maxViewers: 5, source: sourceChoice });
+          if (state === 'connected') ws.send({ type: 'host:create', token: token.current, title, pin: pin || undefined, maxViewers: viewerLimit, source: sourceChoice });
           if (state === 'disconnected' && client.current) { cleanup(); setSession(null); setBusy(false); setError('Session stopped. Start again to approve a new capture.'); }
         },
         onMessage: m => {
@@ -156,9 +166,14 @@ export function HostPage() {
       <label className="label">Presentation title<input className="input" maxLength={128} value={title} onChange={e => setTitle(e.target.value)} /></label>
       <label className="label">Optional six-digit PIN<input className="input" inputMode="numeric" maxLength={6} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} /></label>
       <label className="label">Source<select className="input" value={sourceChoice} onChange={e => setSourceChoice(e.target.value as 'screen' | 'deck')}><option value="screen">Share screen</option><option value="deck">Upload presentation</option></select></label>
+      <label className="label">Maximum viewers (1–50)<input className="input" type="number" inputMode="numeric" min={1} max={50} value={maxViewers} onChange={e => setMaxViewers(e.target.value.replace(/\D/g, '').slice(0, 2))} onBlur={() => setMaxViewers(String(viewerLimit))} /></label>
+      <p className="capacity">{sourceChoice === 'deck'
+        ? `Uploaded decks are served as slide images rather than continuous video, so ${viewerLimit} viewers is practical with a normal Wi-Fi access point.`
+        : `Live screen video is uploaded separately to every viewer — up to ~${estimatedUploadMbps(viewerLimit)} Mbps from the presenter at ${viewerLimit} viewers with ${QUALITY_PRESETS[quality].label}.`}</p>
+      {viewerLimit > 10 && <p className="capacity capacity-danger">Above ~10 viewers a phone hotspot is not enough: most hotspots allow only 5–10 connected devices. Use a dedicated Wi-Fi 5/6 access point with client isolation disabled.{sourceChoice === 'screen' ? ' Connect the presenter by Ethernet if possible, and switch to Low Bandwidth or an uploaded deck if viewers report freezing.' : ' Uploaded decks are the lightest option, but each slide change still sends a full image to every viewer.'}</p>}
       <button className="btn btn-primary" disabled={busy} onClick={start}>{busy ? 'Starting…' : 'Start sharing'}</button>
     </section> : <>
-      <header className="toolbar"><h2>{session.title}</h2><span>{session.status} · {viewers.length} viewers</span><button className="btn btn-danger" onClick={end}>End session</button></header>
+      <header className="toolbar"><h2>{session.title}</h2><span>{session.status} · {viewers.length} / {session.maxViewers} viewers</span><button className="btn btn-danger" onClick={end}>End session</button></header>
       <div className="dashboard"><section hidden={session.source === 'deck'}>
         <div className="video-container"><video ref={preview} autoPlay playsInline muted /></div>
         <div className="toolbar">
@@ -171,11 +186,18 @@ export function HostPage() {
         <p>{stillCount ? `Still image — ${stillCount} viewer(s)` : 'Live video'} · Automatic still after 5 seconds without pixel changes. Hidden dashboards use live video.</p>
       </section><aside className="card"><h3>Viewers</h3>
         <button className="btn btn-secondary" onClick={() => client.current?.send({ type: 'host:lock', locked: !session.joinLocked })}>{session.joinLocked ? 'Unlock joining' : 'Lock joining'}</button>
+        <button className="btn btn-secondary" style={{ marginTop: '.5rem', width: '100%' }} aria-pressed={session.reviewLocked} onClick={() => client.current?.send({ type: 'host:review-lock', locked: !session.reviewLocked })}>{session.reviewLocked ? 'Unlock previous slides' : 'Lock previous slides'}</button>
+        <p style={{ fontSize: '.8rem' }}>{session.reviewLocked ? 'Viewers can only see your current slide.' : 'Viewers can review earlier slides independently.'}</p>
+        <p style={{ fontSize: '.8rem' }}>{viewers.length} of {session.maxViewers} viewer slots used</p>
+        {session.source !== 'deck' && session.maxViewers > 10 && <p className="capacity capacity-danger">Presenter upload can reach ~{estimatedUploadMbps(Math.max(viewers.length, session.maxViewers))} Mbps at the full limit. If viewers freeze, choose Low Bandwidth or switch to an uploaded deck.</p>}
         {viewers.map(v => <div className="toolbar" key={v.id}><span>{v.displayName} · {v.state}</span><button className="btn btn-secondary" onClick={() => client.current?.send({ type: 'host:remove-viewer', viewerId: v.id })}>Remove</button></div>)}
         {pin && <p>PIN: {pin}</p>}
       </aside></div>
     </>}
-    <DeckPresenter token={token.current} state={deckState} uploaded={uploaded} onUploaded={setUploaded} send={session ? message => client.current?.send(message) || false : undefined} />
+    <div className="presenter-workspace">
+      <DeckPresenter token={token.current} state={deckState} uploaded={uploaded} onUploaded={setUploaded} send={session ? message => client.current?.send(message) || false : undefined} />
+      <PresenterScript />
+    </div>
     <section className="card join-info"><h2>Invite viewers</h2>
       <label className="label">Network adapter (changing it ends the session)<select className="input" value={address} onChange={async e => {
         const address = e.target.value;

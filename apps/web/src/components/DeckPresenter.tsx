@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ClientMessage, DeckState } from '@localstage/protocol';
 import { SlideImage } from './SlideImage';
 export interface UploadedDeck { id: string; totalSlides: number }
+const MAX_UPLOAD_BYTES = 150 * 1024 * 1024;
 export function DeckPresenter({ token, state, uploaded, onUploaded, send }: { token: string; state: DeckState | null; uploaded: UploadedDeck | null; onUploaded: (deck: UploadedDeck) => void; send?: (message: ClientMessage) => boolean }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [preview, setPreview] = useState(1);
   const navigate = (slide: number) => {
@@ -10,7 +11,7 @@ export function DeckPresenter({ token, state, uploaded, onUploaded, send }: { to
   };
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]')) return;
+      if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"], .presenter-script, .script-dialog')) return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); navigate((state?.presenterSlide || preview) + (e.key === 'ArrowRight' ? 1 : -1)); }
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
@@ -18,8 +19,9 @@ export function DeckPresenter({ token, state, uploaded, onUploaded, send }: { to
   const deck = state ? { id: state.deckId, totalSlides: state.totalSlides } : uploaded;
   const slide = state?.presenterSlide || preview;
   return <section className="card join-info"><h2>Presentation deck</h2>
-    <label className="label">Upload PDF, PPTX or PPT<input className="input" type="file" accept=".pdf,.pptx,.ppt" disabled={busy} onChange={async e => {
+    <label className="label">Upload PDF, PPTX or PPT (up to 150 MB)<input className="input" type="file" accept=".pdf,.pptx,.ppt" disabled={busy} onChange={async e => {
       const file = e.target.files?.[0]; if (!file) return;
+      if (file.size > MAX_UPLOAD_BYTES) { setError('File is too large. The maximum upload size is 150 MB.'); e.target.value = ''; return; }
       setBusy(true); setError('');
       try {
         const response = await fetch(`/api/decks?format=${file.name.split('.').pop()?.toLowerCase()}`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' }, body: file });

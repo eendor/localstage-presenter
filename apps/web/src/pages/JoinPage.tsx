@@ -13,8 +13,8 @@ export function JoinPage() {
     return () => controller.abort();
   }, []);
   if (watching && session) return <ViewerPage admission={{ sessionId: session.id, displayName: name, pin }} title={session.title} onLeave={() => { setWatching(false); setPin(''); }} />;
-  return <main className="container page setup"><form className="card" onSubmit={e => { e.preventDefault(); setWatching(true); }}>
-    <h1>LocalStage</h1><h2>{session?.title || 'Join presentation'}</h2>
+  return <main className="container page setup join-page"><form className="card" onSubmit={e => { e.preventDefault(); setWatching(true); }}>
+    <span className="eyebrow">LOCALSTAGE / SAME NETWORK. SHARED MOMENT.</span><h1>Take a front-row seat.</h1><h2>{session?.title || 'Join presentation'}</h2>
     <label className="label">Your name (optional)<input className="input" maxLength={64} value={name} onChange={e => setName(e.target.value)} /></label>
     {session?.hasPin && <label className="label">Six-digit PIN<input className="input" inputMode="numeric" maxLength={6} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} /></label>}
     {error && <p role="alert" className="error">{error}</p>}

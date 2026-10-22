@@ -36,7 +36,14 @@ export class DeckStore {
   }
   setup(app: Express, auth: HostAuth) {
     const authorize = (req: Request) => isLoopback(req.socket.remoteAddress) && auth.validateHostToken((req.headers.authorization || '').replace(/^Bearer /, ''));
-    app.post('/api/decks', (req, res, next) => { if (!authorize(req)) { res.sendStatus(403); return; } next(); }, express.raw({ type: 'application/octet-stream', limit: process.env.MAX_DECK_BYTES || '50mb' }), async (req, res) => {
+    const maxUpload = process.env.MAX_DECK_BYTES || '150mb';
+    const capacity = /^(\d+)(kb|mb|gb)$/i.exec(maxUpload);
+    const maxUploadLabel = capacity ? `${capacity[1]} ${capacity[2].toUpperCase()}` : maxUpload;
+    const rawUpload = express.raw({ type: 'application/octet-stream', limit: maxUpload });
+    app.post('/api/decks', (req, res, next) => { if (!authorize(req)) { res.sendStatus(403); return; } next(); }, (req, res, next) => rawUpload(req, res, error => {
+      if (error) { res.status(413).json({ error: `Upload too large. Maximum deck size is ${maxUploadLabel}.` }); return; }
+      next();
+    }), async (req, res) => {
       if (this.uploading) { res.status(409).json({ error: 'A conversion is already running' }); return; }
       if (this.decks.size >= 4) { res.status(409).json({ error: 'Four decks loaded. End the session before uploading more.' }); return; }
       const extension = String(req.query.format).toLowerCase();

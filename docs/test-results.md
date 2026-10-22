@@ -2,6 +2,23 @@
 
 > Record actual test results here. Do not fill in results that haven't been tested.
 
+## Reverification — 2026-10-20
+
+Command: `npm run check` — **PASS**.
+
+- Protocol, web and server TypeScript builds passed; Vite production build passed.
+- **5 tests passed, 0 failed:** malformed protocol rejection; PIN attempt limits;
+  authenticated admission/role isolation/origin checks/signaling lifecycle;
+  local PDF conversion and authoritative slide access; page-limit and invalid-PDF rejection.
+- The Windows PDF.js asset-path fix is present and the PDF subprocess tests pass.
+- Checklist totals independently recounted: 266 items, 215 checked, 51 open.
+- This rerun did not verify real screen capture, decoded LAN video, still-mode
+  behavior, mobile layouts, Office conversion, offline startup or capacity.
+
+For each manual result, record date, browser/version, OS/device, network, steps,
+expected outcome, observed outcome and supporting screenshot/log/metric. Mark a
+test failed or blocked explicitly rather than treating implementation as a pass.
+
 ## Automated implementation check — 2026-10-19
 
 - Environment: Windows, Node v24.19.0.

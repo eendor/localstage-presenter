@@ -36,10 +36,15 @@ async function bindLan(address: string | null) {
   } finally { switching = false; }
 }
 setupHttpRoutes(app, path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist'), store, auth, () => {
-  decks.setup(app, auth); setupSlideAccess(app, decks, auth, token => viewerAuthorized(token));
+  decks.setup(app, auth); setupSlideAccess(app, decks, auth, token => viewerAuthorized(token), () => store.getActiveSession()?.reviewLocked === true);
 }, { info: () => ({ selectedAddress, port }), select: async address => { if (address !== selectedAddress) { closeSignaling.end(); await bindLan(address); } } });
 const closeSignaling = setupSignaling([server, lanServer], store, auth, decks, check => { viewerAuthorized = check; });
-server.on('error', error => { console.error(error.message); process.exitCode = 1; closeSignaling(); });
+const fatalListen = (error: Error & { code?: string }) => {
+  if (error.code === 'EADDRINUSE') console.error(`Port ${port} is already in use. Another LocalStage instance may be running — close it or start with a different PORT.`);
+  else console.error(error.message);
+  process.exit(1);
+};
+server.on('error', fatalListen);
 server.listen(port, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${port}/host#${auth.getBootstrapSecret()}`;
   console.log(`Presenter (one-use link, expires in 5 minutes): ${url}`);
@@ -53,7 +58,7 @@ server.listen(port, '127.0.0.1', () => {
     }
   }
 });
-void bindLan(selectedAddress).catch(console.error);
+void bindLan(selectedAddress).catch(fatalListen);
 const networkTimer = setInterval(() => {
   if (!switching && selectedAddress && !getNetworkInterfaces().some(a => a.address === selectedAddress)) {
     closeSignaling.end(); void bindLan(getDefaultLanAddress()).catch(console.error);

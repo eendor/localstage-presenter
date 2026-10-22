@@ -10,7 +10,8 @@ import { HostAuth, PinRateLimiter } from './auth.js';
 import { validateClientMessage } from '@localstage/protocol';
 
 test('reject malformed protocol payloads', () => {
-  for (const value of [null, [], { type: 'host:lock', locked: 'false' }, { type: 'rtc:offer', connectionGeneration: -1 }, { type: 'host:create', title: 'x', maxViewers: 500, token: 'x' }]) assert.equal(validateClientMessage(value), false);
+  for (const value of [null, [], { type: 'host:lock', locked: 'false' }, { type: 'host:review-lock', locked: 'true' }, { type: 'rtc:offer', connectionGeneration: -1 }, { type: 'host:create', title: 'x', maxViewers: 500, token: 'x' }]) assert.equal(validateClientMessage(value), false);
+  assert.equal(validateClientMessage({ type: 'host:review-lock', locked: true }), true);
 });
 
 test('PIN limiter blocks the sixth attempt and isolates clients', () => {
@@ -68,6 +69,10 @@ test('authenticated admission, role isolation, relay, generations, removal and e
     host.send({ type: 'rtc:offer', sessionId: session.id, targetViewerId: accepted.viewerId, connectionGeneration: 1, sdp: 'test-offer' }); assert.equal((await viewer.next('rtc:offer')).sdp, 'test-offer');
     viewer.send({ type: 'rtc:answer', sessionId: session.id, viewerId: accepted.viewerId, connectionGeneration: 1, sdp: 'test-answer' }); assert.equal((await host.next('rtc:answer')).sdp, 'test-answer');
     host.send({ type: 'rtc:offer', sessionId: session.id, targetViewerId: accepted.viewerId, connectionGeneration: 1, sdp: 'stale' }); assert.match((await host.next('error')).message, /stale/);
+    viewer.send({ type: 'host:review-lock', locked: true }); assert.match((await viewer.next('error')).message, /Presenter only/);
+    host.send({ type: 'host:review-lock', locked: true });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(store.getActiveSession()?.reviewLocked, true);
     host.send({ type: 'host:remove-viewer', viewerId: accepted.viewerId }); await host.next('viewer:left');
     another.send({ type: 'viewer:join', sessionId: session.id, token: accepted.token }); assert.match((await another.next('error')).message, /expired/);
     host.send({ type: 'host:lock', locked: true });

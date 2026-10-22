@@ -1,12 +1,34 @@
 # LocalStage — Project Tasks
 
-> **Last updated:** 2026-10-19  
-> **Status legend:** ✅ Done · 🔲 Not started · 🚧 In progress
+> **Last verified:** 2026-10-20  
+> **Status legend:** `[x]` Implemented (or explicitly verified test) · `[ ]` Open: missing, partial, or awaiting validation
 
 > **Audit:** Checked implementation items mean code exists and builds, not that all
 > device acceptance gates have passed. Physical-device tests remain unchecked.
 > See `docs/test-results.md` for actual evidence. Remaining engineering includes
 > Office-conversion sandbox/fixtures, recovery edge cases, and the conditional SFU.
+
+## Verification and next actions
+
+`npm run check` passed on 2026-10-20: all three workspaces build and all five
+automated tests pass. Recounted **266 items: 215 checked, 51 open**. These numbers
+measure checklist implementation coverage, not production readiness.
+
+| Priority | Work | Evidence required to close |
+|---|---|---|
+| P0 | Prove actual LAN video delivery | Second physical device displays changing captured content; record browsers, OS, network and decoded frames. The earlier embedded-browser attempt did not confirm playback. |
+| P0 | Verify pause, source changes and cleanup | Observe outgoing video/audio suppression, capture stop, peer closure and no remaining timers/listeners after repeated sessions. |
+| P1 | Exercise still-mode races | Motion before/during transfer, late acknowledgements, channel failure, background dashboard, fresh-frame recovery and new viewers; record video bitrate reduction and audio continuity. |
+| P1 | Finish Office conversion | Install/configure LibreOffice; validate PPT/PPTX fixtures, passwords, hidden slides, notes and fonts; enforce subprocess resource/network isolation. PDF-only automated tests do not close these items. |
+| P1 | Verify review UI and reconnect | Two independent reviewers, backward clamping, rapid navigation, deck replacement, late responses, reconnect and desktop/mobile layout. |
+| P2 | Refine remaining interface | Move invitation details into the dashboard side panel; provide conversion-stage progress and test narrow viewports. |
+| P2 | Record deployment acceptance | Offline empty-cache startup, firewall rules, supported-device matrix and 20-minute 1/3/5-viewer runs. |
+| Conditional | Classroom SFU | Establish the audience target and measured peer-to-peer capacity before implementing the Phase 7 upgrade. |
+
+**Closure rule:** cite a source file for implementation work and a dated result in
+`docs/test-results.md` for behavioral verification. A build pass alone cannot close
+capture, streaming, privacy, offline, mobile or capacity acceptance items. A checked
+phase implementation list does not automatically satisfy its gate.
 
 ---
 
@@ -439,7 +461,7 @@
 
 ## Summary
 
-| Phase | Total Tasks | Done |
+| Phase | Total Tasks | Checked implementation / verified test |
 |-------|------------|------|
 | 0 — Project Setup | 10 | 10 |
 | 1 — Feasibility | 25 | 21 |

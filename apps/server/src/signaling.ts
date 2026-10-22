@@ -133,6 +133,7 @@ export function setupSignaling(server: HttpServer | HttpServer[], store: Session
         if (s !== host) { error(s, 'Presenter only'); return; }
         if (m.type === 'host:end') end();
         else if (m.type === 'host:lock') { store.setJoinLocked(s.sessionId, m.locked); state(); }
+        else if (m.type === 'host:review-lock') { store.setReviewLocked(s.sessionId, m.locked); state(); }
         else if (m.type === 'host:status') { store.updateStatus(s.sessionId, m.status); state(); }
         else if (m.type === 'host:remove-viewer') {
           const target = viewers().find(v => v.viewerId === m.viewerId);
