@@ -15,8 +15,8 @@
 ![No accounts](https://img.shields.io/badge/accounts-none-ff69b4?style=flat-square)
 ![Works offline](https://img.shields.io/badge/internet-optional-orange?style=flat-square)
 
-<img src="docs/presenter.png" alt="Presenter page" width="68%">
-<img src="docs/join-phone.png" alt="Viewer join page on a phone" width="24%">
+<img src="docs/images/presenter.png" alt="Presenter page" width="68%">
+<img src="docs/images/join-phone.png" alt="Viewer join page on a phone" width="24%">
 
 </div>
 
@@ -63,7 +63,19 @@ It's meant for situations where the usual options don't fit:
 - The presenter and viewers must be on the same network.
 - Up to 50 viewers. Screen sharing sends a separate video stream to each viewer, so with many viewers a deck works better.
 
+## 📡 Trouble connecting?
+
+See **[docs/NETWORK.md](docs/NETWORK.md)** for firewall and Wi-Fi tips.
+
 ## 🛠️ For developers
+
+```
+src/      C server
+web/      the browser page (built into the server)
+tests/    end-to-end tests  ->  make test
+scripts/  launchers
+docs/     guides and screenshots
+```
 
 Building from source, settings and how it works inside: see **[docs/TECHNICAL.md](docs/TECHNICAL.md)**.
 

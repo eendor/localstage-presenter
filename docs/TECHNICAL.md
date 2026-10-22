@@ -14,7 +14,7 @@ Building from source, settings, and how it works inside.
 make            # builds ./localstage
 make test       # end-to-end tests (starts a server on a random port)
 ./localstage
-# or simply: ./run.sh   (builds, starts, opens the browser)
+# or simply: ./scripts/run.sh   (builds, starts, opens the browser)
 ```
 
 The server prints a one-use presenter link (`http://127.0.0.1:3000/host#...`, valid for 5 minutes) and the join address for each network adapter. Open the presenter link on this computer. Viewers open the `/join` address or scan the QR code.
@@ -63,4 +63,4 @@ To build the exe yourself: `make windows` (MinGW cross-compiler, e.g. `pacman -S
 - "Still image" mode is gone. Use a deck upload instead.
 - The Windows `.bat`/`.ps1` launchers are gone.
 
-See `docs/network-setup.md` for network setup and troubleshooting.
+See [NETWORK.md](NETWORK.md) for network setup and troubleshooting.

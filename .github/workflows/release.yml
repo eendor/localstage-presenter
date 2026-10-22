@@ -55,7 +55,7 @@ jobs:
       - name: package
         run: |
           mkdir -p dist/localstage
-          cp localstage.exe run-localstage.bat README.md dist/localstage/
+          cp localstage.exe scripts/run-localstage.bat README.md dist/localstage/
           cd dist && zip -qr ../localstage-windows.zip localstage
       - uses: actions/upload-artifact@v4
         with: { name: windows, path: localstage-windows.zip }

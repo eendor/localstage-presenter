@@ -16,7 +16,7 @@
 1. **Check the address:** Are you using the correct LAN IP shown by LocalStage? `localhost` on a phone refers to the phone, not the presenter's laptop.
 2. **Same network:** Ensure all devices are on the same Wi-Fi or hotspot.
 3. **Firewall:** The presenter's firewall must allow incoming TCP connections on port 3000.
-   - **Windows:** Allow Node.js through Windows Firewall → Inbound Rule for port 3000.
+   - **Windows:** Allow localstage.exe through Windows Firewall → Inbound Rule for port 3000.
 4. **Client isolation:** Some routers and guest Wi-Fi networks block device-to-device traffic. Try a different network or the laptop's hotspot.
 5. **VPN:** A running VPN may route traffic away from the local network. Disconnect it.
 
@@ -37,9 +37,9 @@
 6. Name it "LocalStage"
 
 > **Note:** This opens port 3000 for the web server. WebRTC media is sent by the
-> presenter's **browser**, not Node.js. Allow the presenter browser's media traffic
+> presenter's **browser**, not the LocalStage server. Allow the presenter browser's media traffic
 > on the Private network profile, with the remote scope restricted to the local
-> subnet. Keep the firewall enabled. These instructions still require a real-device test.
+> subnet. Keep the firewall enabled.
 
 ### Adapter selection and address changes
 
