@@ -186,5 +186,7 @@ extern const unsigned char web_index[];
 extern const unsigned long web_index_len;
 extern const unsigned char web_pdfjs[], web_pdfworker[];
 extern const unsigned long web_pdfjs_len, web_pdfworker_len;
+extern const unsigned char web_pptx[], web_h2c[];
+extern const unsigned long web_pptx_len, web_h2c_len;
 
 #endif

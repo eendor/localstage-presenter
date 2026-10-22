@@ -377,12 +377,16 @@ function hostPage(root) {
     setError(deckError, ''); file.disabled = true; deckBusy.hidden = false;
     try {
       const ext = (f.name.split('.').pop() || '').toLowerCase();
-      if (inApp && ext !== 'pdf') {
-        // Phones can't convert PowerPoint; tell the presenter the quick fix.
-        const e = new Error('PowerPoint files can\'t be converted on a phone. Open it in PowerPoint or Google Slides, choose Share → Export as PDF, then pick that PDF here.');
+      let body = f, format = ext;
+      if (ext === 'ppt' && inApp) {
+        const e = new Error('Old .ppt files can\'t be opened on a phone. Save it as .pptx or PDF first.');
         e.userFacing = true; throw e;
       }
-      let body = f, format = ext;
+      if (ext === 'pptx' && (inApp || S.noOffice)) {
+        // No LibreOffice here: draw the slides in this browser instead.
+        body = await renderPptx(f, (i, n) => { deckBusy.textContent = `Preparing slide ${i} of ${n}…`; }); format = 'slides';
+        deckBusy.textContent = 'Uploading…';
+      }
       if (ext === 'pdf') {
         // Render the PDF here in the browser, so the computer needs no PDF tools installed.
         try { body = await renderPdf(f, (i, n) => { deckBusy.textContent = `Preparing slide ${i} of ${n}…`; }); format = 'slides'; }
@@ -391,7 +395,11 @@ function hostPage(root) {
       }
       const data = await jsonOrError(await fetch(`/api/decks?format=${encodeURIComponent(format)}`, { method: 'POST', headers: { Authorization: `Bearer ${S.token}`, 'Content-Type': 'application/octet-stream' }, body }));
       S.uploaded = data; S.preview = 1; if (!S.session) { source.value = 'deck'; capacity(); } renderDeck();
-    } catch (e) { setError(deckError, e.message); }
+    } catch (e) {
+      // This computer has no LibreOffice: convert the PowerPoint in the browser instead.
+      if (/\.pptx$/i.test(f.name) && !S.noOffice && /LibreOffice/.test(e.message)) { S.noOffice = true; file.disabled = false; return upload(f); }
+      setError(deckError, e.message);
+    }
     finally { file.disabled = false; deckBusy.hidden = true; deckBusy.textContent = 'Uploading and converting locally… This may take up to two minutes.'; file.value = ''; }
   }
   let pdfjsLoading = null;
@@ -435,6 +443,42 @@ function hostPage(root) {
         canvas.width = canvas.height = 0;
       }
     } finally { pdf.destroy(); }
+    return new Blob(parts, { type: 'application/octet-stream' });
+  }
+  // PowerPoint in the browser: works on phones and on computers without LibreOffice.
+  function loadScript(src, global) {
+    if (window[global]) return Promise.resolve(window[global]);
+    return new Promise((ok, fail) => document.head.append(h('script', { src, onload: () => ok(window[global]), onerror: () => fail(new Error('Could not load ' + src)) })));
+  }
+  async function renderPptx(f, progress) {
+    const [lib, html2canvas] = await Promise.all([import('/vendor/pptx-renderer.js'), loadScript('/vendor/html2canvas.min.js', 'html2canvas')]);
+    let pres;
+    try { pres = lib.buildPresentation(await lib.parseZip(await f.arrayBuffer(), lib.RECOMMENDED_ZIP_LIMITS)); }
+    catch (e) { const err = new Error('This PowerPoint file could not be read. Try saving it again, or export it as PDF.'); err.userFacing = true; throw err; }
+    const slides = pres.slides.filter(s => !s.hidden);
+    if (!slides.length) { const err = new Error('This PowerPoint file has no slides.'); err.userFacing = true; throw err; }
+    const scale = 1920 / Math.max(pres.width, pres.height);
+    // Slides are drawn off-screen at their real size, then captured as images.
+    const host = h('div', { style: `position:fixed;left:0;top:0;z-index:-1;width:${pres.width}px;height:${pres.height}px;overflow:hidden;background:#fff` });
+    document.body.append(host);
+    const cache = new Map(), parts = [];
+    try {
+      for (let i = 0; i < slides.length; i++) {
+        progress(i + 1, slides.length);
+        const handle = lib.renderSlide(pres, slides[i], { mediaUrlCache: cache, pdfjs: false });
+        host.replaceChildren(handle.element);
+        try {
+          await handle.ready;
+          await Promise.all([...host.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
+          if (document.fonts) await document.fonts.ready;
+          const canvas = await html2canvas(host, { scale, backgroundColor: '#ffffff', logging: false, useCORS: false });
+          const png = await new Promise((ok, fail) => canvas.toBlob(b => b ? ok(b) : fail(new Error('Could not render a slide')), 'image/png'));
+          const len = new Uint8Array(4); new DataView(len.buffer).setUint32(0, png.size);
+          parts.push(len, png);
+          canvas.width = canvas.height = 0;
+        } finally { handle.dispose(); }
+      }
+    } finally { host.remove(); for (const u of cache.values()) if (typeof u === 'string' && u.startsWith('blob:')) URL.revokeObjectURL(u); }
     return new Blob(parts, { type: 'application/octet-stream' });
   }
   function navigate(slide) {

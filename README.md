@@ -33,7 +33,7 @@
    Windows may show "Windows protected your PC" the first time: click **More info → Run anyway**. On a Mac, right-click `start.command` → **Open** the first time.
 3. Show the QR code to your audience. They scan it, and they're in. 🎉
 
-> 💡 **Nothing to install.** PDF slides work right away. For PowerPoint files, install [LibreOffice](https://www.libreoffice.org/) (Mac and Linux launchers offer to do it for you). Or just export your slides to PDF.
+> 💡 **Nothing to install.** PDF slides work right away. PowerPoint (.pptx) works too: LocalStage draws the slides itself, or uses [LibreOffice](https://www.libreoffice.org/) for best quality if it's installed. Or just export your slides to PDF.
 >
 > 👥 **Your audience installs nothing either.** They only need a web browser: phone, tablet or laptop, any brand.
 
@@ -42,8 +42,7 @@
 Install `localstage-android.apk` from the [download page](https://github.com/eendor/localstage-presenter/releases/latest). Android may ask you to allow installs from your browser or Files app.
 
 1. Open **LocalStage**. The presenter screen appears with the join QR code.
-2. Tap **Choose slides** and pick your PDF. (Or, from any app, **Share** a PDF to LocalStage.)
-   Got a PowerPoint? Open it in the PowerPoint or Google Slides app, use **Share → Export as PDF**, and pick that PDF. The phone can't convert PowerPoint by itself; a computer running LocalStage can.
+2. Tap **Choose slides** and pick a **PDF or PowerPoint (.pptx)**. The phone turns it into slides by itself. (Or **Share** a PDF to LocalStage from any app.)
 3. Tap **Start presentation** and swipe through your slides.
 
 Tip: turn on your phone's **hotspot** and have people join it. LocalStage notices the hotspot by itself and updates the QR code. That works anywhere, even with no Wi-Fi around. Screen sharing isn't available on Android, so present a PDF.
@@ -101,6 +100,7 @@ Building from source, settings and how it works inside: see **[docs/TECHNICAL.md
 - Original app: [dizshh/localstage-presenter](https://github.com/dizshh/localstage-presenter). This fork rewrites it in C.
 - Live video: [WebRTC](https://webrtc.org/), built into every modern browser.
 - PDF slides: [PDF.js](https://mozilla.github.io/pdf.js/) by Mozilla (Apache 2.0), built in.
+- PowerPoint slides: [pptx-renderer](https://github.com/aiden0z/pptx-renderer) (Apache 2.0) and [html2canvas](https://html2canvas.hertzen.com/) (MIT), built in.
 - PowerPoint slides: [LibreOffice](https://www.libreoffice.org/).
 - Badges: [Shields.io](https://shields.io/).
 

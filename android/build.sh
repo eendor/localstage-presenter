@@ -11,10 +11,10 @@ TC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
 MIN=24
 OUT=build/android
 rm -rf "$OUT" && mkdir -p "$OUT/apk" "$OUT/res"
-make -s build/web.c build/pdfjs.c build/pdfworker.c
+make -s build/web.c build/pdfjs.c build/pdfworker.c build/pptx.c build/h2c.c
 
 SRC="src/main.c src/http.c src/ws.c src/signaling.c src/decks.c src/net.c src/json.c src/qr.c src/util.c src/plat.c
-     build/web.c build/pdfjs.c build/pdfworker.c android/app.c"
+     build/web.c build/pdfjs.c build/pdfworker.c build/pptx.c build/h2c.c android/app.c"
 for abi in arm64-v8a armeabi-v7a x86_64; do
   case $abi in
     arm64-v8a) cc=$TC/aarch64-linux-android$MIN-clang ;;

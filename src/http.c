@@ -247,15 +247,20 @@ static void route(Conn *c) {
         return;
     }
     if (!get) { status_only(c, 405); return; }
-    if (!strcmp(c->path, "/vendor/pdf.min.js") || !strcmp(c->path, "/vendor/pdf.worker.min.js")) {
-        int worker = c->path[12] == 'w';
-        http_send(c, 200, "text/javascript", worker ? web_pdfworker : web_pdfjs, worker ? web_pdfworker_len : web_pdfjs_len,
-                  "Cache-Control: public, max-age=86400\r\n");
-        return;
-    }
+    static const struct { const char *path; const unsigned char *data; const unsigned long *len; } vendor[] = {
+        {"/vendor/pdf.min.js", web_pdfjs, &web_pdfjs_len},
+        {"/vendor/pdf.worker.min.js", web_pdfworker, &web_pdfworker_len},
+        {"/vendor/pptx-renderer.js", web_pptx, &web_pptx_len},
+        {"/vendor/html2canvas.min.js", web_h2c, &web_h2c_len},
+    };
+    for (size_t i = 0; i < sizeof vendor / sizeof vendor[0]; i++)
+        if (!strcmp(c->path, vendor[i].path)) {
+            http_send(c, 200, "text/javascript", vendor[i].data, *vendor[i].len, "Cache-Control: public, max-age=86400\r\n");
+            return;
+        }
     http_send(c, 200, "text/html; charset=utf-8", web_index, web_index_len,
               "Cache-Control: no-cache\r\nContent-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self'; style-src 'unsafe-inline'; "
-              "img-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n");
+              "img-src 'self' blob: data:; font-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n");
 }
 
 /* ---------- parsing ---------- */

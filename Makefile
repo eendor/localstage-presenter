@@ -3,7 +3,7 @@ CFLAGS ?= -O2 -g
 CFLAGS += -std=c11 -Wall -Wextra -Wshadow -Wformat=2 -fstack-protector-strong -D_FORTIFY_SOURCE=2
 LDLIBS = -lm
 SRC = src/main.c src/http.c src/ws.c src/signaling.c src/decks.c src/net.c src/json.c src/qr.c src/util.c src/plat.c
-GEN = build/web.c build/pdfjs.c build/pdfworker.c
+GEN = build/web.c build/pdfjs.c build/pdfworker.c build/pptx.c build/h2c.c
 OBJ = $(SRC:.c=.o) $(GEN:.c=.o)
 
 all: localstage
@@ -26,6 +26,12 @@ build/pdfjs.c: web/vendor/pdf.min.js build/embed
 
 build/pdfworker.c: web/vendor/pdf.worker.min.js build/embed
 	build/embed $< $@ web_pdfworker
+
+build/pptx.c: web/vendor/pptx-renderer.js build/embed
+	build/embed $< $@ web_pptx
+
+build/h2c.c: web/vendor/html2canvas.min.js build/embed
+	build/embed $< $@ web_h2c
 
 build/%.o: build/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
