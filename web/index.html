@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LocalStage</title>
+<style>
+:root {
+  --bg: #0a0a0f; --surface: #14141c; --surface-2: #1d1d28; --border: #2a2a38;
+  --text: #ececf1; --muted: #9a9aab; --primary: #5b7fff; --primary-2: #4766e0;
+  --danger: #ff5b6b; --ok: #3ddc97; --warn: #ffb547; --radius: 12px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+[hidden] { display: none !important; }
+a { color: var(--primary); word-break: break-all; }
+h1, h2, h3 { margin: 0 0 .5rem; line-height: 1.2; }
+h1 { font-size: 1.5rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
+.container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
+.toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .75rem; }
+.toolbar h1, .toolbar h2 { margin: 0; flex: 1; }
+.label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: .75rem; }
+.input { display: block; width: 100%; margin-top: .25rem; padding: .55rem .7rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; }
+.toolbar .input { width: auto; margin: 0; }
+.btn { padding: .55rem 1rem; border-radius: 8px; border: 1px solid transparent; font: inherit; cursor: pointer; color: var(--text); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--primary); } .btn-primary:hover:not(:disabled) { background: var(--primary-2); }
+.btn-secondary { background: var(--surface-2); border-color: var(--border); }
+.btn-danger { background: var(--danger); }
+.error { background: #3a1520; border: 1px solid var(--danger); padding: .6rem .8rem; border-radius: 8px; }
+.capacity { font-size: .85rem; color: var(--muted); } .capacity-danger { color: var(--warn); }
+.eyebrow { display: block; font-size: .75rem; letter-spacing: .12em; color: var(--primary); margin-bottom: .5rem; }
+.setup { max-width: 560px; margin-left: auto; margin-right: auto; }
+.dashboard { display: grid; grid-template-columns: 1fr 300px; gap: 1rem; }
+.presenter-workspace { display: grid; grid-template-columns: 1fr 360px; gap: 1rem; }
+@media (max-width: 860px) { .dashboard, .presenter-workspace { grid-template-columns: 1fr; } }
+.video-container { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; aspect-ratio: 16 / 9; }
+.video-container video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.media-fill .video-container video { object-fit: cover; }
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.7); text-align: center; padding: 1rem; }
+.play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.qr { display: block; width: 200px; height: 200px; margin-top: .75rem; background: #fff; border-radius: 8px; }
+.slide { display: block; width: 100%; height: auto; background: #000; border-radius: 8px; }
+.thumbnails { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .5rem; max-height: 320px; overflow: auto; }
+.thumbnails .btn { padding: .25rem; font-size: .8rem; }
+.thumbnails .current { outline: 2px solid var(--primary); }
+.viewer-row { display: flex; gap: .5rem; align-items: center; justify-content: space-between; margin: .4rem 0; font-size: .9rem; }
+.badge { padding: .2rem .6rem; border-radius: 999px; font-size: .8rem; background: var(--surface-2); }
+.badge-live { background: #12392a; color: var(--ok); } .badge-paused { background: #3a2c10; color: var(--warn); } .badge-ended { color: var(--muted); }
+.script-reader { white-space: pre-wrap; max-height: 50vh; overflow: auto; padding: .75rem; background: var(--surface-2); border-radius: 8px; }
+.script-editor { min-height: 260px; resize: vertical; }
+.script-help { font-size: .8rem; color: var(--muted); }
+dialog.script-dialog { width: 92vw; height: 90vh; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); }
+dialog.script-dialog .script-reader { max-height: calc(90vh - 120px); }
+.join-page { max-width: 520px; padding-top: 10vh; }
+.viewer { min-height: 100vh; display: flex; flex-direction: column; padding: 1rem; max-width: 1400px; margin: 0 auto; }
+.viewer-stage { flex: 1; }
+.viewer.immersive { position: fixed; inset: 0; z-index: 10; max-width: none; background: #000; padding: 0; }
+.viewer.immersive .viewer-header, .viewer.immersive .viewer-controls { position: absolute; left: 0; right: 0; z-index: 2; background: rgba(10,10,15,.85); padding: .5rem 1rem; margin: 0; transition: opacity .2s; }
+.viewer.immersive .viewer-header { top: 0; } .viewer.immersive .viewer-controls { bottom: 0; }
+.viewer.immersive.controls-hidden .viewer-header, .viewer.immersive.controls-hidden .viewer-controls { opacity: 0; pointer-events: none; }
+.viewer.immersive .viewer-stage { height: 100vh; display: flex; align-items: center; justify-content: center; }
+.viewer.immersive .video-container { aspect-ratio: auto; height: 100vh; width: 100vw; border-radius: 0; }
+.viewer.immersive .slide { max-height: 100vh; width: auto; max-width: 100vw; margin: 0 auto; border-radius: 0; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.viewer.immersive .split { grid-template-columns: 1fr; width: 100vw; }
+.viewer.immersive .split .live-pane { position: absolute; right: 1rem; top: 4rem; width: 28vw; z-index: 1; background: rgba(0,0,0,.6); padding: .25rem; border-radius: 8px; }
+@media (max-width: 700px) { .split { grid-template-columns: 1fr; } }
+.pane-title { font-size: .85rem; color: var(--muted); margin: .25rem 0; }
+.slide-edge { position: absolute; top: 50%; transform: translateY(-50%); z-index: 1; font-size: 2.5rem; background: rgba(0,0,0,.4); border: 0; color: #fff; width: 3rem; height: 5rem; cursor: pointer; border-radius: 8px; }
+.slide-edge:disabled { opacity: .2; } .slide-edge-previous { left: .5rem; } .slide-edge-next { right: .5rem; }
+.muted { color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<noscript><p class="container">LocalStage needs JavaScript.</p></noscript>
+<div id="app"></div>
+<script>
+'use strict';
+// ---------- helpers ----------
+const $ = (sel, root = document) => root.querySelector(sel);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'class') el.className = v;
+    else if (k === 'style') el.style.cssText = v;
+    else if (k in el && k !== 'list' && k !== 'form') el[k] = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid instanceof Node ? kid : String(kid));
+  return el;
+}
+function setError(box, message) { box.textContent = message || ''; box.hidden = !message; }
+const QUALITY = {
+  slides: { label: 'Slides (1080p, 15 fps)', width: 1920, height: 1080, maxFps: 15, kbps: 2000 },
+  balanced: { label: 'Balanced (720p, 30 fps)', width: 1280, height: 720, maxFps: 30, kbps: 2500 },
+  'low-bandwidth': { label: 'Low bandwidth (540p, 15 fps)', width: 960, height: 540, maxFps: 15, kbps: 1000 },
+};
+const signalingUrl = () => `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+function acceptDeckState(current, next) {
+  if (!next) return true;
+  return !current || next.deckRevision > current.deckRevision || (next.deckId === current.deckId && next.deckRevision === current.deckRevision && next.stateSequence > current.stateSequence);
+}
+async function jsonOrError(response) {
+  let data = {};
+  try { data = await response.json(); } catch { /* empty or non-JSON body */ }
+  if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+  return data;
+}
+
+// ---------- signaling client with reconnect ----------
+class Signaling {
+  constructor({ onMessage, onState, maxReconnect = 10 }) {
+    Object.assign(this, { onMessage, onState, maxReconnect, attempts: 0, timer: null, ws: null, closed: false, state: 'disconnected' });
+  }
+  connect() { this.closed = false; this.set('connecting'); this.open(); }
+  open() {
+    const ws = this.ws = new WebSocket(signalingUrl());
+    ws.onopen = () => { this.attempts = 0; this.set('connected'); };
+    ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch { return; } this.onMessage(m); };
+    ws.onclose = () => { if (this.ws === ws && !this.closed) this.retry(); };
+  }
+  retry() {
+    if (this.attempts >= this.maxReconnect) { this.set('disconnected'); return; }
+    this.set('reconnecting');
+    const delay = Math.min(1000 * 2 ** this.attempts++, 30000);
+    this.timer = setTimeout(() => this.open(), delay);
+  }
+  disconnect() {
+    this.closed = true; clearTimeout(this.timer);
+    if (this.ws) { const ws = this.ws; this.ws = null; ws.onclose = ws.onmessage = ws.onopen = null; try { ws.close(1000); } catch {} }
+    this.set('disconnected');
+  }
+  send(m) { if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false; this.ws.send(JSON.stringify(m)); return true; }
+  set(s) { if (s !== this.state) { this.state = s; this.onState(s); } }
+}
+
+// ---------- slide images (authenticated fetch -> blob URL) ----------
+function slideImage(deckId, revision, slide, token, cls = 'slide') {
+  const box = h('div', {}, h('p', { class: 'muted', role: 'status' }, 'Loading slide…'));
+  const controller = new AbortController();
+  box.dispose = () => { controller.abort(); if (box.url) URL.revokeObjectURL(box.url); };
+  fetch(`/api/decks/${encodeURIComponent(deckId)}/slides/${slide}?revision=${revision}`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal, cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('Slide unavailable or access changed'); return r.blob(); })
+    .then(blob => { if (controller.signal.aborted) return; box.url = URL.createObjectURL(blob); box.replaceChildren(h('img', { class: cls, src: box.url, alt: `Slide ${slide}` })); })
+    .catch(e => { if (!controller.signal.aborted) box.replaceChildren(h('p', { class: 'muted', role: 'status' }, e.message)); });
+  return box;
+}
+// Replace children, revoking blob URLs of removed slide images.
+function swap(parent, ...kids) {
+  parent.querySelectorAll('div').forEach(d => d.dispose && d.dispose());
+  if (parent.dispose) parent.dispose();
+  parent.replaceChildren(...kids);
+}
+
+// ---------- WebRTC: presenter side ----------
+class HostPeers {
+  constructor(sessionId, send, report) { Object.assign(this, { sessionId, send, report, peers: new Map(), generation: 0 }); }
+  async add(id, stream) {
+    this.remove(id);
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    const video = pc.addTransceiver('video', { direction: 'sendonly' }).sender;
+    const hasAudio = stream.getAudioTracks().length > 0;
+    const audio = pc.addTransceiver('audio', { direction: hasAudio ? 'sendonly' : 'inactive' }).sender;
+    const peer = { pc, video, audio, hasAudio, generation: ++this.generation, ice: [] };
+    this.peers.set(id, peer);
+    const pending = []; let offered = false;
+    const sendIce = candidate => this.send({ type: 'rtc:ice', sessionId: this.sessionId, targetId: id, connectionGeneration: peer.generation, candidate });
+    pc.onicecandidate = e => { const c = e.candidate ? e.candidate.toJSON() : null; if (offered) sendIce(c); else pending.push(c); };
+    pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') this.report('Video connection failed. Ask the viewer to rejoin; check Wi-Fi isolation and firewall media rules.'); };
+    await video.replaceTrack(stream.getVideoTracks()[0] || null);
+    await audio.replaceTrack(stream.getAudioTracks()[0] || null);
+    await pc.setLocalDescription(await pc.createOffer());
+    if (this.peers.get(id) !== peer) return; // replaced or removed meanwhile
+    this.send({ type: 'rtc:offer', sessionId: this.sessionId, targetViewerId: id, connectionGeneration: peer.generation, sdp: pc.localDescription.sdp });
+    offered = true; pending.forEach(sendIce);
+  }
+  async handle(m) {
+    if (m.type !== 'rtc:answer' && m.type !== 'rtc:ice') return;
+    const peer = this.peers.get(m.type === 'rtc:answer' ? m.viewerId : m.targetId);
+    if (!peer || peer.generation !== m.connectionGeneration) return;
+    if (m.type === 'rtc:answer') {
+      await peer.pc.setRemoteDescription({ type: 'answer', sdp: m.sdp });
+      for (const c of peer.ice.splice(0)) await peer.pc.addIceCandidate(c || undefined);
+    } else if (peer.pc.remoteDescription) await peer.pc.addIceCandidate(m.candidate || undefined);
+    else peer.ice.push(m.candidate);
+  }
+  async replace(stream) {
+    await Promise.all([...this.peers.entries()].map(async ([id, p]) => {
+      if (p.hasAudio !== stream.getAudioTracks().length > 0) { await this.add(id, stream); return; }
+      await p.video.replaceTrack(stream.getVideoTracks()[0] || null);
+      await p.audio.replaceTrack(stream.getAudioTracks()[0] || null);
+    }));
+  }
+  async quality(preset) {
+    const q = QUALITY[preset];
+    await Promise.all([...this.peers.values()].map(async p => {
+      const params = p.video.getParameters();
+      if (!params.encodings || !params.encodings.length) return;
+      params.encodings[0].maxBitrate = q.kbps * 1000; params.encodings[0].maxFramerate = q.maxFps;
+      await p.video.setParameters(params);
+    }));
+  }
+  remove(id) { const p = this.peers.get(id); if (p) { p.pc.onicecandidate = p.pc.onconnectionstatechange = null; p.pc.close(); this.peers.delete(id); } }
+  close() { for (const id of [...this.peers.keys()]) this.remove(id); }
+}
+
+// ---------- WebRTC: viewer side ----------
+class ViewerPeer {
+  constructor(viewerId, send, onStream, onState) { Object.assign(this, { viewerId, send, onStream, onState, generation: 0, ice: [], pc: null }); }
+  async handle(m) {
+    if (m.type === 'rtc:offer') {
+      if (m.connectionGeneration <= this.generation) return;
+      this.close(); this.generation = m.connectionGeneration;
+      const pc = this.pc = new RTCPeerConnection({ iceServers: [] });
+      const stream = new MediaStream();
+      pc.ontrack = e => { stream.addTrack(e.track); this.onStream(stream); };
+      pc.onconnectionstatechange = () => this.onState(pc.connectionState);
+      pc.onicecandidate = e => this.send({ type: 'rtc:ice', sessionId: m.sessionId, targetId: 'host', connectionGeneration: m.connectionGeneration, candidate: e.candidate ? e.candidate.toJSON() : null });
+      await pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
+      for (const c of this.ice.splice(0)) await pc.addIceCandidate(c || undefined);
+      await pc.setLocalDescription(await pc.createAnswer());
+      if (this.pc !== pc) return;
+      this.send({ type: 'rtc:answer', sessionId: m.sessionId, viewerId: this.viewerId, connectionGeneration: m.connectionGeneration, sdp: pc.localDescription.sdp });
+    } else if (m.type === 'rtc:ice' && m.connectionGeneration === this.generation) {
+      if (this.pc && this.pc.remoteDescription) await this.pc.addIceCandidate(m.candidate || undefined);
+      else this.ice.push(m.candidate);
+    }
+  }
+  close() { if (this.pc) { const pc = this.pc; pc.ontrack = pc.onicecandidate = pc.onconnectionstatechange = null; pc.close(); } this.pc = null; this.ice = []; }
+}
+
+// ---------- presenter script (speaker notes, local only) ----------
+function presenterScript() {
+  let text = ''; try { text = sessionStorage.getItem('presenterScript') || ''; } catch {}
+  let editing = !text, size = 24;
+  const body = h('div'), status = h('p', { class: 'script-help', role: 'status' });
+  const reader = cls => h('div', { class: 'script-reader ' + (cls || ''), tabIndex: 0, role: 'region', 'aria-label': 'Presenter script', style: `font-size:${size}px` }, text || 'Your script will appear here. Choose Edit script to type or paste your speaking notes.');
+  const sizing = () => h('label', { class: 'script-help' }, 'Text size ', h('select', { class: 'input', onchange: e => { size = Number(e.target.value); render(); } },
+    [18, 24, 30, 36, 44].map(s => h('option', { value: s, selected: s === size }, `${s}px`))));
+  const dialog = h('dialog', { class: 'script-dialog' });
+  const toggle = h('button', { class: 'btn btn-secondary', onclick: () => { editing = !editing; render(); } });
+  const toolbar = h('div', { class: 'toolbar' }, toggle, h('button', { class: 'btn btn-secondary', onclick: () => { renderDialog(); dialog.showModal(); } }, 'Expand script'), h('span'));
+  function save() {
+    try { sessionStorage.setItem('presenterScript', text); status.textContent = 'Saved in this browser tab. Scroll the script independently while presenting.'; }
+    catch { status.textContent = 'Notes are available for this visit only; browser storage is unavailable.'; }
+  }
+  function renderDialog() {
+    dialog.replaceChildren(h('div', { class: 'toolbar' }, h('h2', {}, 'Presenter script'), sizing(), h('button', { class: 'btn btn-primary', onclick: () => dialog.close() }, 'Close expanded view')), reader());
+  }
+  function render() {
+    toggle.textContent = editing ? 'Read script' : 'Edit script';
+    toolbar.lastChild.replaceWith(sizing());
+    body.replaceChildren(editing
+      ? h('label', { class: 'label' }, 'Speaking notes', h('textarea', { class: 'input script-editor', style: `font-size:${size}px`, value: text, placeholder: 'Type or paste your presentation script here…', oninput: e => { text = e.target.value; save(); } }))
+      : reader());
+    if (dialog.open) renderDialog();
+  }
+  render(); save();
+  return h('aside', { class: 'card' }, h('h2', {}, 'Presenter script'),
+    h('p', { class: 'script-help' }, 'Not sent to viewers. Sharing this window or your entire screen can reveal these notes.'), toolbar, body, status, dialog);
+}
+
+// ---------- presenter page ----------
+function hostPage(root) {
+  const S = { token: sessionStorage.getItem('hostToken') || '', session: null, viewers: [], adapters: [], address: '', port: location.port || '3000',
+    quality: 'balanced', audio: false, hasAudio: false, paused: false, busy: false, uploaded: null, deck: null, preview: 1, source: null, outgoing: null, slate: null,
+    peers: null, client: null, pin: '' };
+  const error = h('p', { class: 'error', role: 'alert', hidden: true });
+  const fail = m => setError(error, m);
+  const connection = h('span', {}, 'Server: disconnected');
+
+  // Setup form
+  const title = h('input', { class: 'input', maxLength: 128, value: 'My Presentation' });
+  const pin = h('input', { class: 'input', inputMode: 'numeric', maxLength: 6, oninput: e => { e.target.value = e.target.value.replace(/\D/g, ''); } });
+  const source = h('select', { class: 'input', onchange: capacity }, h('option', { value: 'screen' }, 'Share screen'), h('option', { value: 'deck' }, 'Upload presentation'));
+  const maxViewers = h('input', { class: 'input', type: 'number', inputMode: 'numeric', min: 1, max: 50, value: 5, oninput: capacity, onblur: () => { maxViewers.value = limit(); capacity(); } });
+  const capacityNote = h('p', { class: 'capacity' }), capacityWarn = h('p', { class: 'capacity capacity-danger' });
+  const startBtn = h('button', { class: 'btn btn-primary', onclick: start }, 'Start sharing');
+  const setup = h('section', { class: 'card setup' }, h('h2', {}, 'Start a presentation'),
+    h('label', { class: 'label' }, 'Presentation title', title), h('label', { class: 'label' }, 'Optional six-digit PIN', pin),
+    h('label', { class: 'label' }, 'Source', source), h('label', { class: 'label' }, 'Maximum viewers (1–50)', maxViewers), capacityNote, capacityWarn, startBtn);
+  const limit = () => Math.max(1, Math.min(50, Math.floor(Number(maxViewers.value)) || 1));
+  const uploadMbps = n => Math.round(n * (QUALITY[S.quality].kbps + (S.hasAudio && S.audio ? 96 : 0)) * 11 / 1000) / 10;
+  function capacity() {
+    const n = limit(), deck = source.value === 'deck';
+    capacityNote.textContent = deck ? `Uploaded decks are served as slide images rather than continuous video, so ${n} viewers is practical with a normal Wi-Fi access point.`
+      : `Live screen video is uploaded separately to every viewer — up to ~${uploadMbps(n)} Mbps from the presenter at ${n} viewers with ${QUALITY[S.quality].label}.`;
+    capacityWarn.hidden = n <= 10;
+    capacityWarn.textContent = 'Above ~10 viewers a phone hotspot is not enough: most hotspots allow only 5–10 connected devices. Use a dedicated Wi-Fi 5/6 access point with client isolation disabled.' +
+      (deck ? ' Uploaded decks are the lightest option, but each slide change still sends a full image to every viewer.' : ' Connect the presenter by Ethernet if possible, and switch to Low Bandwidth or an uploaded deck if viewers report freezing.');
+  }
+
+  // Live dashboard
+  const sessionTitle = h('h2'), sessionInfo = h('span');
+  const preview = h('video', { autoplay: true, playsInline: true, muted: true });
+  const pauseBtn = h('button', { class: 'btn btn-secondary', onclick: togglePause }, 'Pause');
+  const sourceBtn = h('button', { class: 'btn btn-secondary', onclick: changeSource }, 'Change source');
+  const audioBtn = h('button', { class: 'btn btn-secondary', onclick: () => { S.audio = !S.audio; if (S.source) S.source.getAudioTracks().forEach(t => { t.enabled = S.audio && !S.paused; }); renderLive(); } });
+  const qualitySel = h('select', { class: 'input', 'aria-label': 'Quality', onchange: e => changeQuality(e.target.value) }, Object.entries(QUALITY).map(([k, q]) => h('option', { value: k, selected: k === S.quality }, q.label)));
+  const stats = h('p', { class: 'muted' });
+  const screenPane = h('section', {}, h('div', { class: 'video-container' }, preview), h('div', { class: 'toolbar' }, pauseBtn, sourceBtn, audioBtn, qualitySel), stats);
+  const lockBtn = h('button', { class: 'btn btn-secondary', style: 'width:100%', onclick: () => S.client && S.client.send({ type: 'host:lock', locked: !S.session.joinLocked }) });
+  const reviewBtn = h('button', { class: 'btn btn-secondary', style: 'width:100%;margin-top:.5rem', onclick: () => S.client && S.client.send({ type: 'host:review-lock', locked: !S.session.reviewLocked }) });
+  const reviewNote = h('p', { class: 'muted' }), slotsNote = h('p', { class: 'muted' }), liveWarn = h('p', { class: 'capacity capacity-danger' }), viewerList = h('div'), pinNote = h('p');
+  const live = h('div', { hidden: true },
+    h('div', { class: 'toolbar' }, sessionTitle, sessionInfo, h('button', { class: 'btn btn-danger', onclick: end }, 'End session')),
+    h('div', { class: 'dashboard' }, screenPane, h('aside', { class: 'card' }, h('h3', {}, 'Viewers'), lockBtn, reviewBtn, reviewNote, slotsNote, liveWarn, viewerList, pinNote)));
+
+  function renderLive() {
+    const s = S.session;
+    setup.hidden = !!s; live.hidden = !s;
+    if (!s) return;
+    sessionTitle.textContent = s.title;
+    sessionInfo.textContent = `${s.status} · ${S.viewers.length} / ${s.maxViewers} viewers`;
+    screenPane.hidden = s.source === 'deck';
+    pauseBtn.textContent = s.status === 'paused' ? 'Resume' : 'Pause';
+    [pauseBtn, sourceBtn].forEach(b => { b.disabled = S.busy; });
+    audioBtn.disabled = !S.hasAudio;
+    audioBtn.textContent = S.hasAudio ? (S.audio ? 'Mute audio' : 'Enable audio') : 'No captured audio';
+    lockBtn.textContent = s.joinLocked ? 'Unlock joining' : 'Lock joining';
+    reviewBtn.textContent = s.reviewLocked ? 'Unlock previous slides' : 'Lock previous slides';
+    reviewBtn.setAttribute('aria-pressed', s.reviewLocked);
+    reviewNote.textContent = s.reviewLocked ? 'Viewers can only see your current slide.' : 'Viewers can review earlier slides independently.';
+    slotsNote.textContent = `${S.viewers.length} of ${s.maxViewers} viewer slots used`;
+    liveWarn.hidden = !(s.source !== 'deck' && s.maxViewers > 10);
+    liveWarn.textContent = `Presenter upload can reach ~${uploadMbps(Math.max(S.viewers.length, s.maxViewers))} Mbps at the full limit. If viewers freeze, choose Low Bandwidth or switch to an uploaded deck.`;
+    viewerList.replaceChildren(...S.viewers.map(v => h('div', { class: 'viewer-row' }, h('span', {}, `${v.displayName} · ${v.state}`),
+      h('button', { class: 'btn btn-secondary', onclick: () => S.client.send({ type: 'host:remove-viewer', viewerId: v.id }) }, 'Remove'))));
+    pinNote.textContent = S.pin ? `PIN: ${S.pin}` : '';
+  }
+
+  // Deck presenter
+  const deckError = h('p', { class: 'error', role: 'alert', hidden: true }), deckBusy = h('p', { role: 'status', hidden: true }, 'Uploading and converting locally… This may take up to two minutes.');
+  const file = h('input', { class: 'input', type: 'file', accept: '.pdf,.pptx,.ppt', onchange: upload });
+  const presentBtn = h('button', { class: 'btn btn-primary', hidden: true, onclick: () => S.client && S.uploaded && S.client.send({ type: 'deck:activate', deckId: S.uploaded.id, deckRevision: 1, totalSlides: S.uploaded.totalSlides }) }, 'Present uploaded deck');
+  const deckView = h('div');
+  const deckCard = h('section', { class: 'card' }, h('h2', {}, 'Presentation deck'), h('label', { class: 'label' }, 'Upload PDF, PPTX or PPT', file), deckBusy, deckError, presentBtn, deckView);
+  let deckKey = '';
+  async function upload() {
+    const f = file.files[0]; if (!f) return;
+    setError(deckError, ''); file.disabled = true; deckBusy.hidden = false;
+    try {
+      const ext = (f.name.split('.').pop() || '').toLowerCase();
+      const data = await jsonOrError(await fetch(`/api/decks?format=${encodeURIComponent(ext)}`, { method: 'POST', headers: { Authorization: `Bearer ${S.token}`, 'Content-Type': 'application/octet-stream' }, body: f }));
+      S.uploaded = data; S.preview = 1; renderDeck();
+    } catch (e) { setError(deckError, e.message); }
+    finally { file.disabled = false; deckBusy.hidden = true; file.value = ''; }
+  }
+  function navigate(slide) {
+    const st = S.deck;
+    if (st && S.session && S.client) { if (slide >= 1 && slide <= st.totalSlides && slide !== st.presenterSlide) S.client.send({ type: 'presenter:navigate', deckId: st.deckId, deckRevision: st.deckRevision, stateSequence: st.stateSequence, targetSlide: slide }); }
+    else if (!st && S.uploaded && slide >= 1 && slide <= S.uploaded.totalSlides) { S.preview = slide; renderDeck(); }
+  }
+  function renderDeck() {
+    presentBtn.hidden = !(S.uploaded && S.session && (!S.deck || S.uploaded.id !== S.deck.deckId));
+    const deck = S.deck ? { id: S.deck.deckId, total: S.deck.totalSlides } : S.uploaded ? { id: S.uploaded.id, total: S.uploaded.totalSlides } : null;
+    const rev = S.deck ? S.deck.deckRevision : 0, slide = S.deck ? S.deck.presenterSlide : S.preview;
+    const key = deck ? `${deck.id}/${rev}/${slide}` : '';
+    if (key === deckKey) return;
+    const sameDeck = deck && deckKey.startsWith(`${deck.id}/${rev}/`);
+    deckKey = key;
+    if (!deck) { swap(deckView); return; }
+    if (sameDeck) {
+      // Only the current slide changed: keep thumbnails, update main image and counter.
+      swap($('.main-slide', deckView), slideImage(deck.id, rev, slide, S.token));
+      $('.slide-count', deckView).textContent = `Slide ${slide} / ${deck.total}`;
+      $('.prev', deckView).disabled = slide <= 1; $('.next', deckView).disabled = slide >= deck.total;
+      deckView.querySelectorAll('.thumbnails .btn').forEach((b, i) => b.classList.toggle('current', i + 1 === slide));
+      return;
+    }
+    const thumbs = Array.from({ length: deck.total }, (_, i) => h('button', { class: 'btn btn-secondary' + (i + 1 === slide ? ' current' : ''), 'aria-label': `Go to slide ${i + 1}`, onclick: () => navigate(i + 1) },
+      slideImage(deck.id, rev, i + 1, S.token), h('span', {}, i + 1)));
+    swap(deckView, h('div', { class: 'main-slide' }, slideImage(deck.id, rev, slide, S.token)),
+      h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-secondary prev', disabled: slide <= 1, onclick: () => navigate((S.deck ? S.deck.presenterSlide : S.preview) - 1) }, 'Previous'),
+        h('span', { class: 'slide-count' }, `Slide ${slide} / ${deck.total}`),
+        h('button', { class: 'btn btn-secondary next', disabled: slide >= deck.total, onclick: () => navigate((S.deck ? S.deck.presenterSlide : S.preview) + 1) }, 'Next')),
+      h('div', { class: 'thumbnails' }, thumbs));
+  }
+  window.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"], dialog')) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); navigate((S.deck ? S.deck.presenterSlide : S.preview) + (e.key === 'ArrowRight' ? 1 : -1)); }
+  });
+
+  // Invite card
+  const adapterSel = h('select', { class: 'input', onchange: selectAdapter });
+  const invite = h('div');
+  const inviteCard = h('section', { class: 'card' }, h('h2', {}, 'Invite viewers'), h('label', { class: 'label' }, 'Network adapter (changing it ends the session)', adapterSel), invite,
+    h('p', {}, 'Connect every device to the same Wi-Fi or hotspot.'),
+    h('details', {}, h('summary', {}, 'Connection help'),
+      h('p', {}, `Page won't open: verify the selected adapter, the address above, TCP port ${S.port}, firewall rules and hotspot client isolation.`),
+      h('p', {}, "Page opens but video won't connect: allow the browser's WebRTC UDP media traffic and disable Wi-Fi client isolation. No internet or external relay is used.")));
+  let inviteUrl = null;
+  function renderInvite() {
+    const url = S.address ? `http://${S.address}:${S.port}/join` : '';
+    adapterSel.replaceChildren(...(S.adapters.length ? S.adapters : [{ name: 'None', address: '' }]).map(a => h('option', { value: a.address, selected: a.address === S.address }, a.address ? `${a.name} — ${a.address}` : 'No adapter')));
+    if (url === inviteUrl) return;
+    inviteUrl = url;
+    invite.replaceChildren(...(url ? [h('a', { href: url }, url), ' ',
+      h('button', { class: 'btn btn-secondary', onclick: () => navigator.clipboard.writeText(url).catch(() => fail('Copy unavailable. Select and copy the address.')) }, 'Copy address'),
+      h('img', { class: 'qr', src: `/api/qr?text=${encodeURIComponent(url)}`, alt: 'QR code for viewer address' })]
+      : [h('p', {}, 'No LAN adapter found. Connect to Wi-Fi or a hotspot.')]));
+  }
+  async function refreshNetwork() {
+    try {
+      const data = await jsonOrError(await fetch('/api/network/interfaces', { cache: 'no-store' }));
+      S.adapters = data.interfaces; S.address = data.selectedAddress || ''; S.port = String(data.port || S.port);
+      renderInvite();
+    } catch { fail('Local server unavailable. Start the server and reload.'); }
+  }
+  async function selectAdapter() {
+    const address = adapterSel.value;
+    if (S.session) end();
+    try {
+      const data = await jsonOrError(await fetch('/api/network/select', { method: 'POST', headers: { Authorization: `Bearer ${S.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ address }) }));
+      S.address = data.selectedAddress || ''; renderInvite();
+    } catch (e) { fail(e.message); refreshNetwork(); }
+  }
+
+  // Capture and session control
+  async function capture() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) throw new Error('Screen capture requires desktop Chrome/Edge on the loopback presenter page.');
+    const q = QUALITY[S.quality];
+    return navigator.mediaDevices.getDisplayMedia({ video: { width: { ideal: q.width }, height: { ideal: q.height }, frameRate: { ideal: q.maxFps, max: q.maxFps } }, audio: true });
+  }
+  const stop = s => s && s.getTracks().forEach(t => t.stop());
+  function slate() {
+    const c = h('canvas', { width: 1280, height: 720 }), ctx = c.getContext('2d');
+    ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0, 0, 1280, 720); ctx.fillStyle = '#fff'; ctx.font = '36px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Presentation paused', 640, 360);
+    // Redraw periodically so the 1 fps track keeps producing frames.
+    c.timer = setInterval(() => { ctx.fillRect(0, 0, 1, 1); }, 1000);
+    const stream = c.captureStream(1); stream.canvas = c; return stream;
+  }
+  function show(stream) { S.outgoing = stream; preview.srcObject = stream; }
+  function watch(stream) {
+    stream.getVideoTracks()[0].onended = () => { if (S.source === stream) { end(); fail('Screen sharing stopped.'); } };
+    S.hasAudio = S.audio = stream.getAudioTracks().length > 0;
+  }
+  function cleanup() {
+    const ws = S.client; S.client = null; if (ws) ws.disconnect();
+    if (S.peers) S.peers.close(); S.peers = null;
+    stop(S.source); if (S.slate) { clearInterval(S.slate.canvas.timer); stop(S.slate); }
+    S.source = S.outgoing = S.slate = null; S.paused = false; preview.srcObject = null;
+  }
+  function end() {
+    if (S.client) S.client.send({ type: 'host:end' });
+    cleanup(); S.session = null; S.viewers = []; S.busy = false; S.uploaded = null; S.deck = null; S.preview = 1;
+    startBtn.disabled = false; startBtn.textContent = 'Start sharing';
+    renderLive(); renderDeck();
+  }
+  async function start() {
+    fail('');
+    const choice = source.value;
+    if (choice === 'screen' && !window.RTCPeerConnection) return fail('This browser does not support WebRTC screen streaming. Use desktop Chrome or Edge.');
+    if (!S.token) return fail('Open the one-use presenter link printed by the server.');
+    if (pin.value && !/^\d{6}$/.test(pin.value)) return fail('PIN must contain exactly six digits.');
+    if (choice === 'deck' && !S.uploaded) return fail('Upload and preview a deck before starting.');
+    const n = Number(maxViewers.value);
+    if (!Number.isInteger(n) || n < 1 || n > 50) return fail('Maximum viewers must be a whole number between 1 and 50.');
+    S.busy = true; startBtn.disabled = true; startBtn.textContent = 'Starting…';
+    try {
+      if (choice === 'screen') { const stream = await capture(); S.source = stream; show(stream); watch(stream); }
+      S.pin = pin.value;
+      const ws = new Signaling({ maxReconnect: 0,
+        onState: state => {
+          connection.textContent = `Server: ${state}`;
+          if (state === 'connected') ws.send({ type: 'host:create', token: S.token, title: title.value, pin: S.pin || undefined, maxViewers: n, source: choice });
+          if (state === 'disconnected' && S.client === ws) { cleanup(); S.session = null; S.busy = false; startBtn.disabled = false; startBtn.textContent = 'Start sharing'; renderLive(); fail('Session stopped. Start again to approve a new capture.'); }
+        },
+        onMessage: m => {
+          if (m.type === 'host:created') {
+            S.session = m.session; S.busy = false; S.peers = new HostPeers(m.session.id, x => ws.send(x), fail);
+            if (S.uploaded) ws.send({ type: 'deck:activate', deckId: S.uploaded.id, deckRevision: 1, totalSlides: S.uploaded.totalSlides });
+            renderLive(); renderDeck();
+          } else if (m.type === 'deck:state') { if (acceptDeckState(S.deck, m.state)) { S.deck = m.state; renderDeck(); } }
+          else if (m.type === 'session:state') { S.session = m.session; S.viewers = m.viewers || []; if (m.status === 'ended') end(); else renderLive(); }
+          else if (m.type === 'viewer:ready') { if (S.outgoing && S.peers) S.peers.add(m.viewerId, S.outgoing).then(() => S.peers && S.peers.quality(S.quality)).catch(e => fail(e.message)); }
+          else if (m.type === 'viewer:left') { if (S.peers) S.peers.remove(m.viewerId); }
+          else if (m.type === 'error') { fail(m.message); if (!S.peers) { cleanup(); S.busy = false; startBtn.disabled = false; startBtn.textContent = 'Start sharing'; } }
+          else if (S.peers) S.peers.handle(m).catch(e => fail(e.message));
+        } });
+      S.client = ws; ws.connect();
+    } catch (e) { cleanup(); S.busy = false; startBtn.disabled = false; startBtn.textContent = 'Start sharing'; fail(e && e.message ? e.message : 'Capture cancelled. Try again.'); }
+  }
+  async function togglePause() {
+    if (!S.source) return;
+    S.busy = true; renderLive();
+    try {
+      const next = !S.paused;
+      if (!next && (!S.source.getVideoTracks()[0] || S.source.getVideoTracks()[0].readyState !== 'live')) throw new Error('Capture ended. Start a new session.');
+      if (next) { S.slate = S.slate || slate(); S.source.getTracks().forEach(t => { t.enabled = false; }); }
+      else S.source.getTracks().forEach(t => { t.enabled = t.kind === 'video' || S.audio; });
+      const stream = next ? S.slate : S.source;
+      if (S.peers) await S.peers.replace(stream);
+      S.paused = next; show(stream);
+      S.client.send({ type: 'host:status', status: next ? 'paused' : 'live' });
+    } catch (e) { end(); fail(`Media update failed; session stopped: ${e.message || e}`); }
+    finally { S.busy = false; renderLive(); }
+  }
+  async function changeSource() {
+    S.busy = true; renderLive(); fail('');
+    let stream;
+    try {
+      stream = await capture();
+      if (S.paused) stream.getTracks().forEach(t => { t.enabled = false; });
+      if (!S.paused && S.peers) await S.peers.replace(stream);
+      stop(S.source); S.source = stream; watch(stream);
+      if (!S.paused) show(stream);
+    } catch (e) { if (stream) { stop(stream); end(); fail(`Source replacement failed; session stopped: ${e.message || e}`); } else fail(`Source unchanged: ${e.message || e}`); }
+    finally { S.busy = false; renderLive(); }
+  }
+  async function changeQuality(value) {
+    S.quality = value; capacity();
+    const q = QUALITY[value];
+    try {
+      const track = S.source && S.source.getVideoTracks()[0];
+      if (track) await track.applyConstraints({ width: { ideal: q.width }, height: { ideal: q.height }, frameRate: { max: q.maxFps } });
+      if (S.peers) await S.peers.quality(value);
+    } catch (e) { fail(`Quality setting unavailable: ${e.message || e}`); }
+  }
+  const previous = new Map();
+  setInterval(async () => {
+    const peer = S.peers && S.peers.peers.values().next().value;
+    if (!peer) { stats.textContent = 'Waiting for viewer media statistics'; return; }
+    try {
+      const r = {};
+      (await peer.pc.getStats()).forEach(rep => {
+        if (rep.type === 'outbound-rtp' && rep.kind === 'video') {
+          r.w = rep.frameWidth; r.h = rep.frameHeight; r.fps = rep.framesPerSecond;
+          const old = previous.get(rep.id);
+          if (old && rep.timestamp > old.t) r.kbps = Math.round(8 * (rep.bytesSent - old.b) / (rep.timestamp - old.t));
+          previous.set(rep.id, { b: rep.bytesSent, t: rep.timestamp });
+        }
+        if (rep.type === 'remote-inbound-rtp' && rep.kind === 'video') { r.lost = rep.packetsLost; r.rtt = rep.roundTripTime; }
+      });
+      stats.textContent = `${r.w || '—'} × ${r.h || '—'} · ${r.fps || 0} fps · ${r.kbps || 0} kbps · lost ${r.lost || 0} · RTT ${r.rtt ?? '—'} s`;
+    } catch { /* peer closed during sampling */ }
+  }, 2000);
+
+  root.replaceChildren(h('main', { class: 'container' }, h('header', { class: 'toolbar' }, h('h1', {}, 'LocalStage'), connection), error, setup, live,
+    h('div', { class: 'presenter-workspace' }, deckCard, presenterScript()), inviteCard));
+  capacity(); renderLive(); renderDeck(); renderInvite();
+
+  const secret = location.hash.slice(1);
+  if (secret) {
+    history.replaceState(null, '', location.pathname);
+    fetch('/api/host/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret }) })
+      .then(jsonOrError).then(d => { S.token = d.token; sessionStorage.setItem('hostToken', d.token); })
+      .catch(e => fail(e.message));
+  }
+  refreshNetwork(); setInterval(refreshNetwork, 10000);
+  window.addEventListener('pagehide', () => { if (S.client) S.client.send({ type: 'host:end' }); });
+}
+
+// ---------- join page ----------
+function joinPage(root) {
+  let session = null, timer = null;
+  const heading = h('h2', {}, 'Join presentation');
+  const name = h('input', { class: 'input', maxLength: 64 });
+  const pin = h('input', { class: 'input', inputMode: 'numeric', maxLength: 6, oninput: e => { e.target.value = e.target.value.replace(/\D/g, ''); } });
+  const pinLabel = h('label', { class: 'label', hidden: true }, 'Six-digit PIN', pin);
+  const error = h('p', { class: 'error', role: 'alert', hidden: true });
+  const status = h('p', { class: 'muted', role: 'status' }, 'Looking for a presentation…');
+  const watch = h('button', { class: 'btn btn-primary', disabled: true }, 'Watch presentation');
+  const form = h('form', { class: 'card', onsubmit: e => {
+    e.preventDefault(); if (!session) return;
+    clearTimeout(timer);
+    viewerPage(root, { sessionId: session.id, displayName: name.value, pin: pin.value }, session.title, () => { pin.value = ''; show(); poll(); });
+  } }, h('span', { class: 'eyebrow' }, 'LOCALSTAGE / SAME NETWORK. SHARED MOMENT.'), h('h1', {}, 'Take a front-row seat.'), heading,
+    h('label', { class: 'label' }, 'Your name (optional)', name), pinLabel, error, status, watch,
+    h('p', { class: 'muted' }, 'Use the same network as the presenter. Viewing requires no capture, camera or microphone permission.'));
+  const page = h('main', { class: 'container join-page' }, form);
+  const show = () => root.replaceChildren(page);
+  // Keep polling so viewers who arrive before the presenter starts can join without reloading.
+  async function poll() {
+    try {
+      const r = await fetch('/api/session', { cache: 'no-store' });
+      if (r.status === 404) { session = null; status.textContent = 'Waiting for the presenter to start…'; }
+      else { session = await jsonOrError(r); status.textContent = ''; }
+      setError(error, '');
+    } catch { session = null; setError(error, 'Cannot reach the presenter. Check that you are on the same network.'); }
+    heading.textContent = session ? session.title : 'Join presentation';
+    pinLabel.hidden = !(session && session.hasPin);
+    watch.disabled = !session;
+    timer = setTimeout(poll, 3000);
+  }
+  show(); poll();
+}
+
+// ---------- viewer page ----------
+function viewerPage(root, admission, title, onLeave) {
+  let state = 'connecting', status = 'waiting', muted = true, deck = null, deckOnly = false, reviewLocked = false, membership = '', review = null, fill = false;
+  let incoming = null, peer = null, token = null, queue = Promise.resolve(), hideTimer = null, keep = false, left = false;
+  const error = h('p', { class: 'error', role: 'alert', hidden: true });
+  const video = h('video', { autoplay: true, playsInline: true, muted: true });
+  const overlay = h('div', { class: 'overlay' }, h('h2'));
+  const tap = h('button', { class: 'btn btn-primary play', hidden: true, onclick: () => video.play().then(() => { tap.hidden = true; }).catch(() => setError(error, 'Playback blocked. Try muting audio.')) }, 'Tap to play');
+  const liveBox = h('div', { class: 'video-container' }, video, overlay, tap);
+  const badge = h('span', { class: 'badge' });
+  const header = h('header', { class: 'toolbar viewer-header' }, h('div', { style: 'flex:1' }, h('span', { class: 'eyebrow' }, 'LOCALSTAGE / WATCH'), h('h1', {}, title)), badge, h('button', { class: 'btn btn-secondary', onclick: leave }, 'Leave'));
+  const stage = h('div', { class: 'viewer-stage' });
+  const audioBtn = h('button', { class: 'btn btn-secondary', onclick: () => { muted = !muted; video.muted = muted; video.play().catch(() => { tap.hidden = false; }); render(); } });
+  const mediaLabel = h('span', { class: 'muted' });
+  const fillBtn = h('button', { class: 'btn btn-secondary', onclick: () => { fill = !fill; render(); } });
+  const keepBox = h('input', { type: 'checkbox', onchange: e => { keep = e.target.checked; reveal(); } });
+  const keepLabel = h('label', { class: 'muted' }, keepBox, ' Keep controls visible');
+  const fsBtn = h('button', { class: 'btn btn-primary', onclick: toggleFullscreen });
+  const footer = h('footer', { class: 'toolbar viewer-controls', onpointermove: reveal, onpointerdown: reveal, onkeydown: reveal }, audioBtn, mediaLabel, keepLabel, fillBtn, fsBtn);
+  const view = h('div', { class: 'viewer' }, header, error, stage, footer);
+  let expanded = false;
+  const immersive = () => expanded || document.fullscreenElement === view;
+
+  function reveal() {
+    view.classList.remove('controls-hidden'); clearTimeout(hideTimer);
+    if (immersive() && !keep) hideTimer = setTimeout(() => { if (!footer.matches(':hover') && !footer.contains(document.activeElement)) view.classList.add('controls-hidden'); else reveal(); }, 3000);
+  }
+  async function toggleFullscreen() {
+    if (document.fullscreenElement === view) { await document.exitFullscreen().catch(() => {}); return; }
+    if (expanded) { expanded = false; render(); return; }
+    try { if (!view.requestFullscreen) throw 0; await view.requestFullscreen(); } catch { expanded = true; render(); }
+  }
+  const onFs = () => { render(); reveal(); };
+  const onKey = e => {
+    if (e.key === 'Escape' && expanded) { expanded = false; render(); }
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && deck && !reviewLocked && !(e.target.closest && e.target.closest('input, select, textarea'))) {
+      e.preventDefault(); select((review ?? deck.presenterSlide) + (e.key === 'ArrowRight' ? 1 : -1));
+    }
+  };
+  document.addEventListener('fullscreenchange', onFs);
+  document.addEventListener('keydown', onKey);
+  stage.addEventListener('click', e => { if (immersive() && !keep && !e.target.closest('button, select, input, label')) view.classList.toggle('controls-hidden'); });
+
+  function select(slide) {
+    if (!deck || reviewLocked) return;
+    review = slide >= deck.presenterSlide || slide < 1 ? null : slide;
+    renderDeck(true);
+  }
+  let deckKey = '';
+  // Rebuild the slide area; force=true when the personal review slide changed.
+  function renderDeck(force) {
+    if (!deck) { deckKey = ''; if (stage.firstChild !== liveBox) swap(stage, liveBox); return; }
+    if (reviewLocked || (review !== null && review >= deck.presenterSlide)) review = null;
+    const key = `${deck.deckId}/${deck.deckRevision}/${deck.presenterSlide}/${review}/${reviewLocked}/${membership}`;
+    if (key === deckKey && !force) return;
+    deckKey = key;
+    const liveSlide = deckOnly ? slideImage(deck.deckId, deck.deckRevision, deck.presenterSlide, membership) : liveBox;
+    const shown = review ?? deck.presenterSlide;
+    const parts = [];
+    if (review === null) parts.push(h('div', { style: 'position:relative' }, liveSlide, ...edges(shown)));
+    else parts.push(h('div', { class: 'split' },
+      h('section', { class: 'live-pane' }, h('p', { class: 'pane-title' }, `Presenter — Live · Slide ${deck.presenterSlide}`), liveSlide),
+      h('section', { style: 'position:relative' }, h('p', { class: 'pane-title' }, `Your review · Slide ${review}`), slideImage(deck.deckId, deck.deckRevision, review, membership), ...edges(shown))));
+    if (!reviewLocked) {
+      parts.push(h('div', { class: 'toolbar', style: 'margin-top:.75rem' },
+        h('label', { class: 'muted' }, 'Review an available slide ', h('select', { class: 'input', onchange: e => select(Number(e.target.value)) },
+          Array.from({ length: deck.presenterSlide }, (_, i) => h('option', { value: i + 1, selected: i + 1 === shown }, `Slide ${i + 1}${i + 1 === deck.presenterSlide ? ' — Live' : ''}`)))),
+        review !== null ? h('button', { class: 'btn btn-primary', onclick: () => select(deck.presenterSlide) }, 'Back to Live') : null));
+    }
+    parts.push(h('p', { class: 'muted' }, reviewLocked ? 'Presenter locked earlier slides. You are following the live slide.' : `${deck.totalSlides - deck.presenterSlide} future slides locked`));
+    swap(stage, ...parts);
+    if (!deckOnly) attachVideo();
+  }
+  function edges(shown) {
+    if (reviewLocked || !immersive()) return [];
+    return [h('button', { class: 'slide-edge slide-edge-previous', disabled: shown <= 1, 'aria-label': 'Previous slide', onclick: e => { e.stopPropagation(); select(shown - 1); } }, '‹'),
+      h('button', { class: 'slide-edge slide-edge-next', disabled: shown >= deck.presenterSlide, 'aria-label': 'Next slide', onclick: e => { e.stopPropagation(); select(shown + 1); } }, '›')];
+  }
+  function attachVideo() { if (video.srcObject !== incoming) video.srcObject = incoming; if (incoming) video.play().catch(() => { tap.hidden = false; }); }
+  function render() {
+    const imm = immersive();
+    view.className = `viewer${imm ? ' immersive' : ''}${fill ? ' media-fill' : ''}${keep ? ' controls-pinned' : ''}`;
+    document.body.style.overflow = imm ? 'hidden' : '';
+    badge.className = `badge badge-${status === 'live' ? 'live' : status === 'paused' ? 'paused' : 'ended'}`;
+    badge.textContent = `${status} · ${state}`;
+    overlay.hidden = status === 'live' && state === 'connected';
+    overlay.firstChild.textContent = status === 'ended' ? 'Presentation ended' : status === 'paused' ? 'Presentation paused' : state === 'failed' ? 'Video failed — leave and rejoin' : 'Waiting for presenter / reconnecting…';
+    audioBtn.hidden = fillBtn.hidden = deckOnly;
+    audioBtn.textContent = muted ? 'Enable audio' : 'Mute audio';
+    mediaLabel.textContent = deckOnly ? 'Presentation slides' : 'Live video';
+    fillBtn.textContent = fill ? 'Fit entire screen' : 'Fill screen (crop)';
+    keepLabel.hidden = !imm;
+    fsBtn.textContent = imm ? 'Exit fullscreen' : 'Fullscreen';
+    renderDeck(true);
+  }
+  function stopMedia() { if (peer) peer.close(); incoming = null; video.srcObject = null; }
+  const ws = new Signaling({
+    onState: next => {
+      state = next;
+      if (next === 'connected') ws.send(Object.assign({ type: 'viewer:join' }, admission, token ? { token, pin: undefined } : {}));
+      else stopMedia();
+      render();
+    },
+    onMessage: m => {
+      if (m.type === 'viewer:accepted') {
+        token = m.token; membership = m.token; if (peer) peer.close();
+        peer = new ViewerPeer(m.viewerId, x => ws.send(x), stream => { incoming = stream; attachVideo(); }, s => { state = s; render(); });
+        render();
+      } else if (m.type === 'session:state') {
+        deckOnly = m.session.source === 'deck'; reviewLocked = m.session.reviewLocked === true; status = m.status;
+        if (m.status === 'ended') { deck = null; stopMedia(); ws.disconnect(); }
+        render();
+      } else if (m.type === 'deck:state') {
+        if (acceptDeckState(deck, m.state)) { if (!m.state || !deck || m.state.deckRevision !== deck.deckRevision) review = null; deck = m.state; renderDeck(); }
+      } else if (m.type === 'error') { deck = null; setError(error, m.message); stopMedia(); ws.disconnect(); render(); }
+      else queue = queue.then(() => peer && peer.handle(m)).catch(e => setError(error, String(e)));
+    } });
+  function leave() {
+    if (left) return; left = true;
+    ws.send({ type: 'viewer:leave' }); ws.disconnect(); stopMedia(); clearTimeout(hideTimer);
+    swap(stage);
+    document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('keydown', onKey);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    document.body.style.overflow = '';
+    onLeave();
+  }
+  root.replaceChildren(view);
+  if (!window.RTCPeerConnection) { setError(error, 'This browser does not support WebRTC. Use a current Chrome, Edge or Safari browser.'); render(); return; }
+  render(); ws.connect();
+  window.addEventListener('pagehide', () => { if (!left) ws.send({ type: 'viewer:leave' }); }, { once: true });
+}
+
+// ---------- routing ----------
+const app = document.getElementById('app');
+if (location.pathname === '/host') { document.title = 'LocalStage — Presenter'; hostPage(app); }
+else {
+  if (location.pathname !== '/join') history.replaceState(null, '', '/join');
+  document.title = 'LocalStage — Join';
+  joinPage(app);
+}
+</script>
+</body>
+</html>

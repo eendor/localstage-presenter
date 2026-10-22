@@ -1,9 +1,5 @@
-node_modules/
-dist/
-*.tsbuildinfo
-.env
-.env.local
+build/
+localstage
+src/*.o
 *.log
-coverage/
-.vite/
-session-data/
+.env
