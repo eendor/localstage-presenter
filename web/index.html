@@ -86,6 +86,7 @@ dialog.script-dialog .script-reader { max-height: calc(90vh - 120px); }
 .viewer.immersive .review-note { display: none; }
 .viewer.immersive.controls-hidden .review-bar, .viewer.immersive.controls-hidden .slide-edge { opacity: 0; pointer-events: none; }
 .viewer.immersive .live-pane .slide { width: 100%; height: auto; max-height: 30vh; }
+.viewer.immersive.controls-hidden { cursor: none; }
 </style>
 </head>
 <body>
@@ -645,6 +646,7 @@ function viewerPage(root, admission, title, onLeave) {
       e.preventDefault(); select((review ?? deck.presenterSlide) + (e.key === 'ArrowRight' ? 1 : -1));
     }
   };
+  view.addEventListener('pointermove', () => { if (immersive()) reveal(); });
   document.addEventListener('fullscreenchange', onFs);
   document.addEventListener('keydown', onKey);
   stage.addEventListener('click', e => { if (immersive() && !keep && !e.target.closest('button, select, input, label')) view.classList.toggle('controls-hidden'); });
