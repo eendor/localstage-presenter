@@ -21,6 +21,10 @@ make test       # end-to-end tests (starts a server on a random port)
 
 The server prints a one-use presenter link (`http://127.0.0.1:3000/host#...`, valid for 5 minutes) and the join address for each network adapter. Open the presenter link on this computer. Viewers open the `/join` address or scan the QR code.
 
+## macOS
+
+Install Xcode command line tools and `brew install poppler` (plus LibreOffice for slides), then `make run`.
+
 ## Windows
 
 Download `localstage-windows.zip` from the [Releases](https://github.com/eendor/localstage-presenter/releases) page, unzip it, and double-click **run-localstage.bat**. The presenter page opens in your browser; allow the firewall prompt so phones on your Wi-Fi can join.

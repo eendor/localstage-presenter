@@ -284,8 +284,9 @@ void plat_init(const char *argv0) {
 }
 
 sock_t sock_listen(const char *address, int port, int *err) {
-    int fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) { *err = errno; return -1; }
+    fcntl(fd, F_SETFD, FD_CLOEXEC);
     int one = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
     struct sockaddr_in sa = {0};

@@ -94,6 +94,16 @@ void random_bytes(void *out, size_t n) {
         abort();
     }
 }
+#elif defined(__APPLE__)
+void random_bytes(void *out, size_t n) {
+    unsigned char *p = out;
+    while (n) {
+        size_t k = n > 256 ? 256 : n; /* getentropy limit */
+        if (getentropy(p, k) != 0) { perror("getentropy"); abort(); }
+        p += k;
+        n -= k;
+    }
+}
 #else
 void random_bytes(void *out, size_t n) {
     unsigned char *p = out;
