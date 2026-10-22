@@ -263,6 +263,30 @@ static void test_session(void) {
     json_free(deck);
     buf_free(&r.raw);
 
+    /* Browser-rendered deck (PDF.js): a bundle of length-prefixed PNGs needs no server tools. */
+    {
+        static const char png[] = "\x89PNG\r\n\x1a\nfake-image";
+        unsigned plen = sizeof png - 1;
+        char bundle[128];
+        size_t bl = 0;
+        for (int i = 0; i < 2; i++) {
+            bundle[bl++] = 0; bundle[bl++] = 0; bundle[bl++] = 0; bundle[bl++] = (char)plen;
+            memcpy(bundle + bl, png, plen); bl += plen;
+        }
+        snprintf(head, sizeof head, "POST /api/decks?format=slides HTTP/1.1\r\nHost: %s\r\n%sContent-Type: application/octet-stream\r\nContent-Length: %zu\r\n\r\n", host_hdr, auth, bl);
+        r = raw(head, bundle, bl);
+        CHECK(r.status == 200 && strstr(r.body, "\"totalSlides\":2"), "browser-rendered slides accepted (%d) %s", r.status, r.body);
+        buf_free(&r.raw);
+        bundle[4] = 'X'; /* not a PNG any more */
+        snprintf(head, sizeof head, "POST /api/decks?format=slides HTTP/1.1\r\nHost: %s\r\n%sContent-Type: application/octet-stream\r\nContent-Length: %zu\r\n\r\n", host_hdr, auth, bl);
+        r = raw(head, bundle, bl);
+        CHECK(r.status == 400, "non-PNG slide bundle rejected (%d)", r.status);
+        buf_free(&r.raw);
+        r = req("GET", "/vendor/pdf.worker.min.js", NULL, NULL);
+        CHECK(r.status == 200 && strstr(r.raw.d, "text/javascript"), "PDF.js worker served (%d)", r.status);
+        buf_free(&r.raw);
+    }
+
     /* Host creates a PIN-protected session. */
     Ws host, viewer, bad;
     CHECK(ws_open(&host), "host WebSocket handshake");

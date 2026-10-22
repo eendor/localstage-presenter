@@ -178,5 +178,7 @@ void net_info_json(Buf *b);
 /* web.c (generated) */
 extern const unsigned char web_index[];
 extern const unsigned long web_index_len;
+extern const unsigned char web_pdfjs[], web_pdfworker[];
+extern const unsigned long web_pdfjs_len, web_pdfworker_len;
 
 #endif

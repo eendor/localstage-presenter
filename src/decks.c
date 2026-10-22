@@ -80,14 +80,16 @@ void decks_begin_upload(Conn *c) {
     char msg[128];
     c->upload_f = NULL;
     if (c->content_length < 0) { http_error(c, 411, "Content-Length required"); return; }
-    if (c->content_length > app.max_upload) {
+    /* Pre-rendered PNGs are bigger than the PDF they came from. */
+    long long limit = !strcmp(format, "slides") ? app.max_upload * 4 : app.max_upload;
+    if (c->content_length > limit) {
         snprintf(msg, sizeof msg, "Upload too large. Maximum deck size is %s.", app.max_upload_label);
         http_error(c, 413, msg);
         return;
     }
     if (app.conv_conn || app.conv.running) { http_error(c, 409, "A conversion is already running"); return; }
     if (app.ndecks >= MAX_DECKS) { http_error(c, 409, "Four decks loaded. End the session before uploading more."); return; }
-    if ((strcmp(format, "pdf") && strcmp(format, "ppt") && strcmp(format, "pptx")) || c->content_length == 0) {
+    if ((strcmp(format, "pdf") && strcmp(format, "ppt") && strcmp(format, "pptx") && strcmp(format, "slides")) || c->content_length == 0) {
         http_error(c, 400, "Upload a PDF, PPTX or PPT file");
         return;
     }
@@ -226,6 +228,51 @@ void decks_convert_child(const char *dir, const char *format, int max_pages) {
     _exit(0);
 }
 
+/* "slides" upload: the presenter's browser already rendered the pages (PDF.js), so no
+   external tools are needed. Body = repeated [4-byte big-endian length][PNG file]. */
+static const char *split_slides(int *total) {
+    char path[600];
+    snprintf(path, sizeof path, "%s/original.slides", app.conv_dir);
+    FILE *in = fopen(path, "rb");
+    if (!in) return "Could not read the upload";
+    const char *err = NULL;
+    int n = 0;
+    unsigned char hdr[4];
+    char *buf = NULL;
+    while (!err) {
+        size_t r = fread(hdr, 1, 4, in);
+        if (r == 0) break;
+        if (r != 4) { err = "Damaged slide bundle"; break; }
+        unsigned long len = (unsigned long)hdr[0] << 24 | (unsigned long)hdr[1] << 16 | (unsigned long)hdr[2] << 8 | hdr[3];
+        if (len < 8 || len > (unsigned long)app.max_upload) { err = "Damaged slide bundle"; break; }
+        if (++n > app.max_pages) { err = "Too many slides"; break; }
+        free(buf);
+        buf = malloc(len);
+        if (!buf || fread(buf, 1, len, in) != len) { err = "Damaged slide bundle"; break; }
+        if (memcmp(buf, "\x89PNG\r\n\x1a\n", 8)) { err = "Slides must be PNG images"; break; }
+        char out[700];
+        snprintf(out, sizeof out, "%s/%d.png", app.conv_dir, n);
+        FILE *o = fopen(out, "wb");
+        if (!o || fwrite(buf, 1, len, o) != len) err = "Could not store a slide";
+        if (o && fclose(o) != 0) err = "Could not store a slide";
+    }
+    free(buf);
+    fclose(in);
+    remove(path);
+    if (!err && n == 0) err = "The deck has no slides";
+    if (!err) {
+        snprintf(path, sizeof path, "%s/count.txt", app.conv_dir);
+        FILE *f = fopen(path, "w");
+        if (!f) return "Could not write output";
+        fprintf(f, "%d", n);
+        fclose(f);
+    }
+    *total = n;
+    return err;
+}
+
+static void finish(int ok, const char *error);
+
 static int has_pdf_magic(void) {
     char path[600], head[5];
     snprintf(path, sizeof path, "%s/original.pdf", app.conv_dir);
@@ -240,6 +287,13 @@ void decks_upload_done(Conn *c) {
     if (c->upload_f && fclose(c->upload_f) != 0) { c->upload_f = NULL; fail_upload(c, 500, "Could not store the upload"); return; }
     c->upload_f = NULL;
     if (!strcmp(conv_format, "pdf") && !has_pdf_magic()) { fail_upload(c, 400, "Invalid PDF file"); return; }
+    if (!strcmp(conv_format, "slides")) {
+        int total = 0;
+        const char *err = split_slides(&total);
+        c->st = CS_WAIT;
+        finish(err == NULL, err);
+        return;
+    }
     c->st = CS_WAIT;
     if (plat_spawn_convert(&app.conv, decks_convert_child, app.conv_dir, conv_format, app.max_pages) != 0) {
         fail_upload(c, 500, "Could not start conversion");

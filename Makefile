@@ -3,7 +3,8 @@ CFLAGS ?= -O2 -g
 CFLAGS += -std=c11 -Wall -Wextra -Wshadow -Wformat=2 -fstack-protector-strong -D_FORTIFY_SOURCE=2
 LDLIBS = -lm
 SRC = src/main.c src/http.c src/ws.c src/signaling.c src/decks.c src/net.c src/json.c src/qr.c src/util.c src/plat.c
-OBJ = $(SRC:.c=.o) build/web.o
+GEN = build/web.c build/pdfjs.c build/pdfworker.c
+OBJ = $(SRC:.c=.o) $(GEN:.c=.o)
 
 all: localstage
 
@@ -20,7 +21,13 @@ build/embed: tools/embed.c
 build/web.c: web/index.html build/embed
 	build/embed web/index.html $@
 
-build/web.o: build/web.c
+build/pdfjs.c: web/vendor/pdf.min.js build/embed
+	build/embed $< $@ web_pdfjs
+
+build/pdfworker.c: web/vendor/pdf.worker.min.js build/embed
+	build/embed $< $@ web_pdfworker
+
+build/%.o: build/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 build/test: tests/test.c src/util.c src/json.c src/qr.c
@@ -35,8 +42,8 @@ test: localstage build/test
 #   make windows WINCC="zig cc -target x86_64-windows-gnu"
 WINCC ?= x86_64-w64-mingw32-gcc
 windows: localstage.exe
-localstage.exe: $(SRC) build/web.c src/*.h
-	$(WINCC) -O2 -std=c11 -Wall -Wextra -D_WIN32_WINNT=0x0601 -D__USE_MINGW_ANSI_STDIO=1 -o $@ $(SRC) build/web.c -lws2_32 -liphlpapi -lbcrypt -lshell32
+localstage.exe: $(SRC) $(GEN) src/*.h
+	$(WINCC) -O2 -std=c11 -Wall -Wextra -D_WIN32_WINNT=0x0601 -D__USE_MINGW_ANSI_STDIO=1 -o $@ $(SRC) $(GEN) -lws2_32 -liphlpapi -lbcrypt -lshell32
 
 clean:
 	rm -rf build localstage localstage.exe src/*.o

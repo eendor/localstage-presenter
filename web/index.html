@@ -362,10 +362,60 @@ function hostPage(root) {
     setError(deckError, ''); file.disabled = true; deckBusy.hidden = false;
     try {
       const ext = (f.name.split('.').pop() || '').toLowerCase();
-      const data = await jsonOrError(await fetch(`/api/decks?format=${encodeURIComponent(ext)}`, { method: 'POST', headers: { Authorization: `Bearer ${S.token}`, 'Content-Type': 'application/octet-stream' }, body: f }));
+      let body = f, format = ext;
+      if (ext === 'pdf') {
+        // Render the PDF here in the browser, so the computer needs no PDF tools installed.
+        try { body = await renderPdf(f, (i, n) => { deckBusy.textContent = `Preparing slide ${i} of ${n}…`; }); format = 'slides'; }
+        catch (e) { if (e && e.userFacing) throw e; body = f; format = 'pdf'; } // fall back to server-side tools
+        deckBusy.textContent = 'Uploading…';
+      }
+      const data = await jsonOrError(await fetch(`/api/decks?format=${encodeURIComponent(format)}`, { method: 'POST', headers: { Authorization: `Bearer ${S.token}`, 'Content-Type': 'application/octet-stream' }, body }));
       S.uploaded = data; S.preview = 1; if (!S.session) { source.value = 'deck'; capacity(); } renderDeck();
     } catch (e) { setError(deckError, e.message); }
-    finally { file.disabled = false; deckBusy.hidden = true; file.value = ''; }
+    finally { file.disabled = false; deckBusy.hidden = true; deckBusy.textContent = 'Uploading and converting locally… This may take up to two minutes.'; file.value = ''; }
+  }
+  let pdfjsLoading = null;
+  function loadPdfjs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (!pdfjsLoading) pdfjsLoading = new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = '/vendor/pdf.min.js';
+      s.onload = () => { if (!window.pdfjsLib) return fail(new Error('PDF.js missing')); window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js'; ok(window.pdfjsLib); };
+      s.onerror = () => { pdfjsLoading = null; fail(new Error('PDF.js failed to load')); };
+      document.head.appendChild(s);
+    });
+    return pdfjsLoading;
+  }
+  // Each page becomes a PNG whose long side is 1920 px, so portrait pages stay sharp.
+  // Output: [4-byte big-endian length][PNG] for every page.
+  async function renderPdf(f, progress) {
+    const lib = await loadPdfjs();
+    let pdf;
+    try { pdf = await lib.getDocument({ data: new Uint8Array(await f.arrayBuffer()), isEvalSupported: false }).promise; }
+    catch (e) {
+      const err = new Error(e && e.name === 'PasswordException' ? 'Encrypted or password-protected PDFs are unsupported' : 'Invalid PDF file');
+      err.userFacing = true; throw err;
+    }
+    const parts = [];
+    try {
+      for (let i = 1; i <= pdf.numPages; i++) {
+        progress(i, pdf.numPages);
+        const page = await pdf.getPage(i);
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: 1920 / Math.max(base.width, base.height) });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(viewport.width); canvas.height = Math.round(viewport.height);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        page.cleanup();
+        const png = await new Promise((ok, fail) => canvas.toBlob(b => b ? ok(b) : fail(new Error('Could not render a page')), 'image/png'));
+        const len = new Uint8Array(4); new DataView(len.buffer).setUint32(0, png.size);
+        parts.push(len, png);
+        canvas.width = canvas.height = 0;
+      }
+    } finally { pdf.destroy(); }
+    return new Blob(parts, { type: 'application/octet-stream' });
   }
   function navigate(slide) {
     const st = S.deck;

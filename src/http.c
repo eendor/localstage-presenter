@@ -229,8 +229,14 @@ static void route(Conn *c) {
         return;
     }
     if (!get) { status_only(c, 405); return; }
+    if (!strcmp(c->path, "/vendor/pdf.min.js") || !strcmp(c->path, "/vendor/pdf.worker.min.js")) {
+        int worker = c->path[12] == 'w';
+        http_send(c, 200, "text/javascript", worker ? web_pdfworker : web_pdfjs, worker ? web_pdfworker_len : web_pdfjs_len,
+                  "Cache-Control: public, max-age=86400\r\n");
+        return;
+    }
     http_send(c, 200, "text/html; charset=utf-8", web_index, web_index_len,
-              "Cache-Control: no-cache\r\nContent-Security-Policy: default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+              "Cache-Control: no-cache\r\nContent-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; worker-src 'self'; style-src 'unsafe-inline'; "
               "img-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n");
 }
 
