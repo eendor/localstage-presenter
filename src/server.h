@@ -93,6 +93,7 @@ typedef struct {
     int port;
     sock_t loop_fd, lan_fd;
     char selected[64]; /* empty: no LAN listener */
+    int manual_adapter; /* picked by the presenter: don't auto-switch */
     Conn **conns;
     int nconns, capconns;
 
@@ -169,6 +170,7 @@ typedef struct { char name[64]; char address[64]; } Iface;
 int net_list(Iface *out, int max);
 int net_default(char *out, size_t n);
 int net_has(const char *address);
+int net_is_tether(const char *name, const char *addr);
 
 /* main.c */
 int localstage_main(int argc, char **argv);

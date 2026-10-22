@@ -215,6 +215,10 @@ int localstage_main(int argc, char **argv) {
                 if (app.selected[0]) printf("Now listening on http://%s:%d/join\n", app.selected, app.port);
             } else if (!app.selected[0] && net_default(lan, sizeof lan) && lan_bind(lan) == 0) {
                 printf("Viewers can join at http://%s:%d/join\n", app.selected, app.port);
+            } else if (!app.manual_adapter && !app.session.active && net_default(lan, sizeof lan) &&
+                       strcmp(lan, app.selected) && lan_bind(lan) == 0) {
+                /* A hotspot or tether was turned on (or a better adapter appeared): follow it. */
+                printf("Network changed. Viewers can join at http://%s:%d/join\n", app.selected, app.port);
             }
         }
         /* Timeouts and teardown. */

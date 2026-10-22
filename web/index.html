@@ -357,12 +357,12 @@ function hostPage(root) {
   const deckView = h('div');
   const inApp = /LocalStageApp/.test(navigator.userAgent);
   const deckCard = h('section', { class: 'card' }, h('h2', {}, 'Presentation deck'),
-    inApp ? h('p', { class: 'muted' }, 'Open your Files app, pick a PDF, then tap Share (or Open with) and choose LocalStage. It appears here automatically.')
-          : h('label', { class: 'label' }, 'Upload PDF, PPTX or PPT', file),
+    h('label', { class: 'label' }, inApp ? 'Choose a PDF' : 'Upload PDF, PPTX or PPT', file),
+    inApp ? h('p', { class: 'muted' }, 'You can also Share a PDF to LocalStage from any app.') : null,
     deckBusy, deckError, presentBtn, deckView);
   if (inApp) {
     // Android app: screen capture isn't available, so present decks only.
-    source.value = 'deck'; source.querySelector('option[value=screen]').remove();
+    file.accept = '.pdf,application/pdf'; source.value = 'deck'; source.querySelector('option[value=screen]').remove();
     setInterval(async () => {
       if (!S.token || deckBusy.hidden === false) return;
       try {
@@ -489,6 +489,9 @@ function hostPage(root) {
   async function refreshNetwork() {
     try {
       const data = await jsonOrError(await fetch('/api/network/interfaces', { cache: 'no-store' }));
+      const key = JSON.stringify(data);
+      if (key === S.netKey) return; // unchanged: keep the QR as is
+      S.netKey = key;
       S.adapters = data.interfaces; S.address = data.selectedAddress || ''; S.port = String(data.port || S.port);
       renderInvite();
     } catch { fail('Local server unavailable. Start the server and reload.'); }
@@ -633,7 +636,7 @@ function hostPage(root) {
       .then(jsonOrError).then(d => { S.token = d.token; sessionStorage.setItem('hostToken', d.token); })
       .catch(e => fail(e.message));
   }
-  refreshNetwork(); setInterval(refreshNetwork, 10000);
+  refreshNetwork(); setInterval(refreshNetwork, 3000);
   window.addEventListener('pagehide', () => { if (S.client) S.client.send({ type: 'host:end' }); });
 }
 

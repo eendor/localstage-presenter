@@ -155,6 +155,7 @@ static void route_json_post(Conn *c, const char *body, size_t n) {
         if (!conn_is_host(c)) { status_only(c, 403); goto out; }
         const char *address = j ? json_str(j, "address") : NULL;
         if (!address || strlen(address) >= sizeof app.selected || !net_has(address)) { http_error(c, 400, "Adapter is unavailable"); goto out; }
+        app.manual_adapter = 1;
         if (strcmp(address, app.selected)) {
             sig_end();
             if (lan_bind(address) != 0) { http_error(c, 500, "Could not listen on that adapter"); goto out; }

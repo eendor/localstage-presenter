@@ -28,12 +28,18 @@ for abi in arm64-v8a armeabi-v7a x86_64; do
   "$TC/llvm-strip" "$OUT/apk/lib/$abi/liblocalstage.so"
 done
 
+# Small Java helper for the file picker (Main.java) -> classes.dex
+mkdir -p "$OUT/classes"
+javac -source 8 -target 8 -nowarn -classpath "$PLATFORM/android.jar" -d "$OUT/classes" $(find android/java -name '*.java') 2>&1 | grep -v 'warning' || true
+"$BT/d8" --min-api $MIN --lib "$PLATFORM/android.jar" --output "$OUT/apk" $(find "$OUT/classes" -name '*.class')
+
 "$BT/aapt2" compile --dir android/res -o "$OUT/res.zip"
 "$BT/aapt2" link -o "$OUT/unsigned.apk" -I "$PLATFORM/android.jar" --manifest android/AndroidManifest.xml \
   --min-sdk-version $MIN --target-sdk-version 34 "$OUT/res.zip"
-(cd "$OUT/apk" && zip -q -0 -r ../unsigned.apk lib 2>/dev/null || python3 -I -c "
+(cd "$OUT/apk" && zip -q -0 -r ../unsigned.apk lib classes.dex 2>/dev/null || python3 -I -c "
 import zipfile,os,sys
 z=zipfile.ZipFile('../unsigned.apk','a')
+z.write('classes.dex')
 for d,_,fs in os.walk('lib'):
     for f in fs: z.write(os.path.join(d,f), compress_type=zipfile.ZIP_STORED)
 z.close()")

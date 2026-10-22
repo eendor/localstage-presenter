@@ -137,6 +137,14 @@ static void show_presenter(ANativeActivity *activity) {
     jclass wcc = (*env)->FindClass(env, "android/webkit/WebViewClient");
     jobject client = (*env)->NewObject(env, wcc, (*env)->GetMethodID(env, wcc, "<init>", "()V"));
     if (!clear_exc(env) && client) call_void(env, wv, "setWebViewClient", "(Landroid/webkit/WebViewClient;)V", client);
+    /* Lets the page's file button open Android's file picker (see Main.java). */
+    jobject loader = call_obj(env, act, "getClassLoader", "()Ljava/lang/ClassLoader;");
+    jclass ldc = (*env)->FindClass(env, "java/lang/ClassLoader");
+    jclass chc = loader ? (*env)->CallObjectMethod(env, loader, (*env)->GetMethodID(env, ldc, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;"), jstr(env, "io.github.eendor.localstage.Main$Chooser")) : NULL;
+    if (!clear_exc(env) && chc) {
+        jobject ch = (*env)->NewObject(env, chc, (*env)->GetMethodID(env, chc, "<init>", "(Landroid/app/Activity;)V"), act);
+        if (!clear_exc(env) && ch) call_void(env, wv, "setWebChromeClient", "(Landroid/webkit/WebChromeClient;)V", ch);
+    } else LOG("file chooser unavailable");
     call_void(env, wv, "loadUrl", "(Ljava/lang/String;)V", jstr(env, url));
     call_void(env, act, "setContentView", "(Landroid/view/View;)V", wv);
 }

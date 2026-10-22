@@ -72,10 +72,25 @@ static int wireless(const char *name) {
     return strncmp(low, "wl", 2) == 0 || strstr(low, "wifi") || strstr(low, "wi-fi") || strstr(low, "wireless");
 }
 
+/* A hotspot or tethering adapter: this device is the one sharing the network, so everyone
+   joining the hotspot can reach it. Android: ap0/swlan0/wlan1/rndis0; macOS Internet Sharing:
+   bridge100; Windows Mobile Hotspot: 192.168.137.1; Linux NetworkManager hotspot: 10.42.0.1. */
+int net_is_tether(const char *name, const char *addr) {
+    static const char *names[] = {"ap", "swlan", "softap", "rndis", "bridge1", "usb", "ncm", NULL};
+    for (int i = 0; names[i]; i++) if (!strncmp(name, names[i], strlen(names[i]))) return 1;
+#ifdef __ANDROID__
+    if (!strcmp(name, "wlan1") || !strcmp(name, "wlan2")) return 1;
+#endif
+    return !strcmp(addr, "192.168.137.1") || !strcmp(addr, "10.42.0.1") || !strcmp(addr, "192.168.43.1") ||
+           !strcmp(addr, "172.20.10.1") || !strcmp(addr, "192.168.2.1");
+}
+
 int net_default(char *out, size_t size) {
     Iface list[32];
     int n = net_list(list, 32);
     if (n == 0) { out[0] = 0; return 0; }
+    for (int i = 0; i < n; i++)
+        if (net_is_tether(list[i].name, list[i].address)) { snprintf(out, size, "%s", list[i].address); return 1; }
     for (int i = 0; i < n; i++)
         if (wireless(list[i].name)) { snprintf(out, size, "%s", list[i].address); return 1; }
     snprintf(out, size, "%s", list[0].address);
