@@ -30,8 +30,18 @@ done
 
 # Small Java helper for the file picker (Main.java) -> classes.dex
 mkdir -p "$OUT/classes"
-javac -source 8 -target 8 -nowarn -classpath "$PLATFORM/android.jar" -d "$OUT/classes" $(find android/java -name '*.java') 2>&1 | grep -v 'warning' || true
+JAVA_SRCS=$(find android/java -name '*.java')
+if [ -z "$JAVA_SRCS" ]; then
+  echo "Error: no Java source files found in android/java" >&2
+  exit 1
+fi
+javac -source 8 -target 8 -nowarn -classpath "$PLATFORM/android.jar" -d "$OUT/classes" $JAVA_SRCS
 "$BT/d8" --min-api $MIN --lib "$PLATFORM/android.jar" --output "$OUT/apk" $(find "$OUT/classes" -name '*.class')
+
+if [ ! -f "$OUT/apk/classes.dex" ]; then
+  echo "Error: classes.dex was not generated!" >&2
+  exit 1
+fi
 
 "$BT/aapt2" compile --dir android/res -o "$OUT/res.zip"
 "$BT/aapt2" link -o "$OUT/unsigned.apk" -I "$PLATFORM/android.jar" --manifest android/AndroidManifest.xml \

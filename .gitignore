@@ -1,7 +1,7 @@
 build/
-localstage
+/localstage
 src/*.o
 *.log
 .env
-localstage.exe
-LocalStage.apk
+/localstage.exe
+/LocalStage.apk
