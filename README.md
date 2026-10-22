@@ -11,6 +11,39 @@ This fork is a rewrite in plain C. The server is a single binary with no Node.js
 
 **Download:** [Windows, macOS, Linux](https://github.com/eendor/localstage-presenter/releases/latest)
 
+## What it's for
+
+LocalStage turns your laptop into a small presentation server for the room you're in. You start it and get a link and a QR code. People scan it with their phone or laptop and see your slides or your screen live in their browser. Nothing leaves your local network.
+
+It's meant for situations where the usual options don't fit:
+
+- **No projector, or a bad one.** Everyone follows along on their own screen instead of squinting at the wall.
+- **No internet, or internet you can't trust.** Video calls and cloud slide links need the internet. LocalStage only needs a shared Wi-Fi or hotspot, even one with no internet connection.
+- **No sign-ups.** Viewers don't install an app or create an account. They open a link.
+- **Privacy.** Your slides and screen go straight from your computer to the viewers' browsers over the local network. No third-party server sees them.
+
+## Use cases
+
+- **Classrooms and workshops:** students follow slides on their phones and can flip back to an earlier slide when you allow it.
+- **Meetups and small talks:** in a café, a meeting room or a hackathon without an HDMI cable.
+- **Team meetings:** walk through a document or a demo on your screen without setting up a call.
+- **Offline events:** field trainings, rural schools, or venues with no internet, using a phone hotspot.
+- **Accessibility:** people at the back of the room or with low vision can zoom in on their own device.
+- **Rehearsing:** read your speaker notes in the presenter script panel while viewers see only the slides.
+
+## Two ways to present
+
+| Mode | What viewers see | When to use it |
+|---|---|---|
+| **Upload a deck** (PDF, PPTX, PPT) | Sharp slide images, which you advance from your laptop | Slide presentations. No screen capture is needed and it uses very little bandwidth. Portrait PDFs are fitted automatically. |
+| **Share screen** | A live video of a window or your whole screen | Live demos, documents, anything that isn't a slide deck. |
+
+## Limits
+
+- The presenter and viewers must be on the same network.
+- Up to 50 viewers. Screen sharing sends a separate video stream to each viewer, so with many viewers a deck works better.
+- PDF decks need Poppler installed. PowerPoint decks also need LibreOffice.
+
 ## Requirements
 
 - Linux or macOS, with a C compiler (`cc`/`gcc`/`clang`) and `make`
